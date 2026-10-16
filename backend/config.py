@@ -1,5 +1,15 @@
-"""全局配置 —— 情绪树洞后端"""
+"""全局配置 —— 情绪树洞后端
+配置加载优先级：进程环境变量 > backend/.env 文件 > 内置默认值
+（.env 已在 .gitignore 排除，密钥不进代码库；模板见 .env.example）
+"""
 import os
+
+# 自动加载 backend/.env（存在则读，不存在走默认值）
+try:
+    from dotenv import load_dotenv
+    load_dotenv(os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env"))
+except ImportError:
+    pass  # 无 python-dotenv 时仅用进程环境变量
 
 # ---- 应用 ----
 APP_NAME = "情绪树洞 API"
