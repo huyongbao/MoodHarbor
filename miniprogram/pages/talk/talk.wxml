@@ -16,6 +16,15 @@
   </view>
   <view wx:if="{{cameraHint}}" class="camera-hint">{{cameraHint}}</view>
 
+  <!-- 表情识别摄像头小窗（进入页面自动开启）+ 状态胶囊 -->
+  <view class="face-detect-box">
+    <camera wx:if="{{faceActive}}" device-position="front" flash="off" class="debug-camera" bindtap="onManualFrame" binderror="onCameraError" />
+    <view wx:else class="debug-camera face-off">
+      <van-icon name="warning-o" size="28rpx" />
+    </view>
+    <view class="face-status {{faceActive ? 'on' : 'off'}}">{{faceActive ? "● " : ""}}{{faceStatus}}</view>
+  </view>
+
   <!-- 数字人 hero 区（形象图来自管理后台 DigitalHuman.avatarUrl，正式版替换魔珐 SDK liveplayer）-->
   <view class="hero">
     <view class="aurora aurora-one"></view>
