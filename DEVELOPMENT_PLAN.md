@@ -1,6 +1,6 @@
 # 情绪树洞 · 开发计划
 
-> 本文档基于《情绪树洞》PRD V6.0（最终定稿）整理，面向三名队员（朱-小程序端、赵-管理后台、后端-共同约定），作为开发期间的对照文件。文中标注「待确认」的条目需要在开工前碰一次，其他内容可以直接按顺序执行。
+> 本文档基于《情绪树洞》PRD V6.3（最新修订版）整理，面向三名队员（朱-小程序端、赵-管理后台、后端-共同约定），作为开发期间的对照文件。文中标注「待确认」的条目需要在开工前碰一次，其他内容可以直接按顺序执行。
 
 ## 一、项目概览
 
@@ -12,7 +12,7 @@
 | :--- | :--- | :--- | :--- |
 | 小程序端 | 朱 | 微信小程序原生 + 魔珐星云 SDK | 用户侧全部交互：登录、选数字人、语音/图像采集、数字人展示、干预弹窗 |
 | 管理后台 | 赵 | Vue3 + Element Plus | 运营侧：数据看板、预警跟进、调试台、RBAC 权限 |
-| 后端与 AI 服务 | 共同（建议指定 1 名主责） | Python FastAPI + EmoLLM + Mem0 + Py-Feat | 业务接口、对话编排、记忆检索、风险分级、预警生成 |
+| 后端与 AI 服务 | 共同（建议指定 1 名主责） | Python FastAPI + EmoLLM + Mem0 + Py-Feat + FunASR + emotion2vec+ | 业务接口、对话编排、记忆检索、风险分级、预警生成 |
 
 后端是三端的交汇点，也是本次开发的关键路径。建议开工会上明确 1 名后端主责队员，另外两人在各自端的开发间隙支援联调，避免"共同负责"变成"无人负责"。
 
@@ -37,7 +37,7 @@ graph TB
         LLM["EmoLLM<br/>共情回复 + 风险推理"]
         MEM["Mem0 + Chroma<br/>用户长期记忆"]
         FEAT["Py-Feat 表情识别"]
-        ASR["ASR 语音转文本"]
+        AUDIO["FunASR 语音转文本<br/>+ emotion2vec+ 情感识别"]
     end
 
     subgraph INFRA["数据与外部服务"]
@@ -48,7 +48,7 @@ graph TB
     MP -->|文本 / 语音 / 图像| API
     ADMIN --> API
     API --> CHAT
-    CHAT --> ASR
+    CHAT --> AUDIO
     CHAT --> FEAT
     CHAT --> MEM
     CHAT --> RISK
@@ -74,6 +74,7 @@ graph TB
 | EmoLLM | PRD 已定，心理健康领域开源模型，自带共情与风险识别的对话风格 |
 | Chroma 向量库 | Mem0 官方支持列表里的主流选项，纯本地、无需起独立数据库服务，Windows 兼容好 |
 | Py-Feat | PRD 已定，学术界常用的表情情绪识别库，输出悲伤/愤怒/恐惧等情绪概率 |
+| FunASR + emotion2vec+ | PRD V6.3 统一。阿里 FunAudioLLM 原生同构生态，一套框架搞定语音转文字（FunASR）与语音情感大模型（emotion2vec_plus_base），直接输出悲伤/愤怒/恐惧/中性等离散情绪概率，与 Py-Feat 视觉情绪对齐 |
 | JWT 鉴权 | PRD 8.1 已定，小程序与管理后台共用一套鉴权体系，后台按角色区分权限 |
 
 ## 三、开发路线
@@ -103,7 +104,7 @@ graph TB
 
 三件事，做完即可进入开发：
 
-1. **接口契约冻结**。在 Apifox 建项目，把 PRD 8.2 小程序端 14 个接口、8.3 管理后台 11 个接口录入，统一响应格式和错误码按 PRD 8.1 执行。定稿后导出 Markdown 给两端留底。
+1. **接口契约冻结**。在 Apifox 建项目，把 PRD 8.2 小程序端接口（含 V6.1 新增的 `/upload` 和 `POST /conversations`）、8.3 管理后台 11 个接口录入，统一响应格式和错误码按 PRD 8.1 执行。定稿后导出 Markdown 给两端留底。
 2. **仓库与环境**。GitHub 建仓库，建议单仓库三个目录（`miniprogram/`、`admin/`、`backend/`），权限管理简单、演示时克隆一次就够。各自装好环境：微信开发者工具、Node.js（后台用）、Python 3.10+（后端用）、魔珐星云开放平台账号（提前申请，审核可能要等，越早越好）。
 3. **AI 资源盘点**。确认两件事：演示机器有没有 GPU（决定 EmoLLM 走本地量化部署还是云端 API）；申请一个通用大模型 API Key 作为阶段二的过渡推理通道。
 
@@ -111,9 +112,9 @@ graph TB
 
 目标是让小程序和后台"有接口可调"。具体做法：
 
-- 按 `routers / services / models` 分层搭 FastAPI 项目，统一响应 `{code, message, data}` 和 JWT 中间件。
-- 按 PRD 8.4 的 8 个数据模型建表（SQLAlchemy + SQLite）。
-- 优先实现这条顺序的接口：微信登录（`code2Session` 换 openid，需要小程序的 AppID）→ 初始化三件套（`init-status`、`digital-humans`、`profile`）→ 对话接口 `chat/completions`（第一版直连云端大模型 API，返回结构严格按 PRD 的响应示例）→ 倾诉记录与一键清除 → 热线与自助资源 → 预警上报。
+- 按 `routers / services / models` 分层搭 FastAPI 项目，统一响应 `{code, message, data}` 和 JWT 中间件。**配置 CORS 中间件**，管理后台（Vue3 SPA）开发阶段需要跨域访问后端。
+- 按 PRD 8.4 的 8 个数据模型建表（SQLAlchemy + SQLite）。注意 V6.2 新增字段：`User.updatedAt`、`Message.imageUrl`、`RiskAlert.updatedAt`。
+- 优先实现这条顺序的接口：微信登录（`code2Session` 换 openid，需要小程序的 AppID）→ 初始化三件套（`init-status`、`digital-humans`、`profile`，注意 `profile` 统一用 PUT 幂等）→ **文件上传 `/upload`**（音频/图像统一走两步流程：先上传拿 URL，再传 URL 给业务接口）→ **创建会话 `POST /conversations`**（返回 `conversationId`）→ 对话接口 `chat/completions`（第一版直连云端大模型 API，返回结构严格按 PRD 的响应示例，注意请求体已改为 `inputTypes` 数组支持多模态组合）→ 倾诉记录与一键清除 → 热线与自助资源 → 预警上报。
 - AI 调用封装成一个独立的 provider 模块，对外暴露统一的 `generate_reply()` 签名。后续阶段四把 EmoLLM 替换进来时，业务代码一行不动。
 
 ### 阶段三：小程序端 P0
@@ -122,7 +123,7 @@ graph TB
 
 1. 微信一键授权登录。
 2. 两步初始化：选数字人（卡片列表，调 `/digital-humans`）→ 完善信息（年龄、性别、职业四选项）。启动时按 `init-status` 的两个布尔值决定跳转到哪一步，PRD 五的状态机逻辑。
-3. 主倾诉界面：数字人形象区 + 字幕 + 播放控制，输入栏支持三种方式——打字、按住说话（`RecorderManager` 录音）、拍表情（`camera` 组件抓一帧，不用做实时视频流，拍照方式简单且演示可控）。采集的音频与图像直接上传后端分析。
+3. 主倾诉界面：数字人形象区 + 字幕 + 播放控制，输入栏支持三种方式——打字、按住说话（`RecorderManager` 录音）、拍表情（`camera` 组件抓一帧，不用做实时视频流，拍照方式简单且演示可控）。采集的音频与图像**先调 `/upload` 上传拿 URL，再随 `chat/completions` 请求传 URL**（PRD V6.2 统一的两步流程）。支持多模态组合输入：如用户说话时同时拍表情，`inputTypes` 传 `["audio", "image"]`。
 4. 分级干预弹窗：一二级弹出热线卡片（拨打 12356 等），三四级走正常回应，热线条目调 `/hotlines`。
 5. 魔珐 SDK 集成：数字人渲染、TTS 播放与口型同步，播放后端返回的 `replyText` 与 `digitalHumanAction`。
 
@@ -134,8 +135,8 @@ graph TB
 
 1. **EmoLLM 落位**。有 GPU 就本地量化部署（如 Ollama 方案），没有就先保留阶段二的云端 API，把 PRD 十的"共情回应、正常化表达、问题重构、行动建议"分层话术写成系统 Prompt，让过渡模型先按树洞人设说话。
 2. **Mem0 + Chroma 记忆层**。对话结束写入记忆，对话开始检索近 N 条形成"情绪趋势摘要"拼进 Prompt。这一步做完，"嘴上每次都说没事、实际持续恶化"的场景才识别得出来。
-3. **多模态**。ASR 把语音转成文本（方案见第五节待确认项）；Py-Feat 接收小程序上传的表情图，输出情绪概率。重点处理 PRD 九里的矛盾场景：文本低风险但表情/语音极高痛苦时，自动提升一级。
-4. **风险分级引擎**。严格按 PRD 9.2 的判定流程实现：模型输出 `{riskLevel, confidence, reason, suggestedAction}` → 置信度 ≥0.8 用模型结果，否则与规则兜底得分加权取高 → 矛盾提升、趋势提升 → 按等级生成干预动作。官方关键词库不直接触发干预，只进 RAG 检索库和 Prompt few-shot。
+3. **多模态**。语音处理采用 **FunASR + emotion2vec+** 组合（音频统一上传后端：FunASR 转文本，同时 emotion2vec+ 提取情绪概率分布，主选 `emotion2vec_plus_base`，输出悲伤、愤怒、恐惧、中性等情绪标签与置信度）。Py-Feat 接收小程序上传的表情图，输出情绪概率。两路情绪特征在后端统一对齐，重点处理 PRD 九里的矛盾场景：文本低风险但表情/语音极高痛苦时，自动提升一级（即 riskLevel 数值减 1，如 4→3）。备选方案：若语音大模型本地资源受限，可换用轻量版 `emotion2vec_plus_seed`，或降级为纯文本/表情模态。V6.2 的 `inputTypes` 组合输入使矛盾场景可在单次请求内完成判定。
+4. **风险分级引擎**。严格按 PRD 9.2 的判定流程实现：模型输出 `{riskLevel, confidence, reason, suggestedAction}` → 置信度 ≥0.8 用模型结果，否则与规则兜底得分加权取高（数值更小的等级） → 矛盾提升、趋势提升（提升一级 = riskLevel 数值减 1） → 按最终 riskLevel 查 PRD 8.2 映射表组装 `intervention` 结构下发。`suggestedAction` 仅后端内部使用，不直接下发前端。官方关键词库不直接触发干预，只进 RAG 检索库和 Prompt few-shot。
 
 ### 阶段五：管理后台
 
@@ -176,7 +177,7 @@ sequenceDiagram
     participant DH as 魔珐 SDK
 
     U->>MP: 说话 / 打字 / 拍表情
-    MP->>BE: POST /chat/completions（text / audioUrl / imageBase64）
+    MP->>BE: POST /chat/completions（inputTypes + text / audioUrl / imageUrl）
     BE->>BE: ASR 转文本、Py-Feat 输出表情概率
     BE->>MEM: 检索近 N 条记忆 → 情绪趋势摘要
     BE->>AI: 拼装 Prompt（画像 + 记忆摘要 + 多模态特征）
@@ -202,10 +203,10 @@ flowchart TD
     B --> C[EmoLLM 输出 riskLevel + confidence + reason]
     C --> D{置信度 ≥ 0.8 ?}
     D -->|是| E[以模型等级为准]
-    D -->|否| F[模型得分与规则兜底得分加权，取高等级]
+    D -->|否| F[模型得分与规则兜底得分加权，取高等级（数值更小）]
     E --> G{文本低风险但表情或语音极高痛苦 ?}
     F --> G
-    G -->|是| H[等级提升一级]
+    G -->|是| H[等级提升一级（riskLevel 数值减 1）]
     G -->|否| I[保持]
     H --> J{Mem0 显示近期情绪持续恶化 ?}
     I --> J
@@ -225,7 +226,7 @@ flowchart TD
 | :--- | :--- | :--- |
 | 后端主责人 | 指定 1 名队员 | PRD 写"共同约定"，不定人则进度无人兜底 |
 | EmoLLM 部署方式 | 有 GPU 本地量化部署；无 GPU 演示期用云端 API 过渡 | 决定阶段四的工作量和演示效果 |
-| ASR 具体方案 | 微信同声传译插件（前端免费，省后端算力）或后端接 FunASR | PRD 只写了"ASR"，方案影响小程序录音格式和后端接口 |
+| 语音多模态方案 | FunASR（语音转文字） + emotion2vec+（语音情感大模型，主选 base 版） | PRD V6.3 已统一为阿里开源语音体系，替代原 librosa 韵律方案，输出细粒度情绪分布 |
 | 业务数据库 | SQLite 起步 | PRD 未指定，确认后不可中途反复 |
 | 演示环境 | 云主机 + HTTPS 域名，或现场用开发者工具直连局域网后端 | 小程序正式包强制校验 HTTPS 域名 |
 | 流式回复 | P0 先非流式，性能不达标再开 `/chat/stream` | PRD 标注为可选，避免一上来把复杂度做满 |

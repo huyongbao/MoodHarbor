@@ -1,30 +1,36 @@
-# 《情绪树洞》——AI心理轻疏导小程序 PRD（V6.1 修订版）
+# 《情绪树洞》——AI心理轻疏导小程序 PRD（V6.3 修订版）
 
 ## 一、 文档信息
 | 项目         | 内容                                                         |
 | :----------- | :----------------------------------------------------------- |
 | **项目名称** | 情绪树洞 - AI心理轻疏导                                      |
-| **文档版本** | V6.1（契约与选型补全修订版）                                |
+| **文档版本** | V6.3（语音情感识别升级为 emotion2vec+ 修订版）               |
 | **撰写人**   | 胡（PM）                                                     |
 | **项目背景** | 黑客松比赛参赛项目                                           |
 | **核心目标** | 为新就业群体提供安全、私密、即时的情绪宣泄与轻疏导，实现“情绪识别 → 共情倾听 → 分级干预 → 高危转介”闭环。 |
 | **后端主责** | 待开工会指定 1 名主责队员（V6.0 中“共同约定”易导致无人兜底） |
 
-**V6.0 → V6.1 修订记录**：
-| # | 修订内容 | 原因 |
-| :--- | :--- | :--- |
-| 1 | 补充会话创建接口 `POST /conversations` 与文件上传接口 `POST /upload` | 原清单缺创建会话入口，`conversationId` 无来源；语音/图像无上传通道 |
-| 2 | 明确 HTTP 状态码与业务 code 的对应关系 | 原错误码表语义含糊，三端联调易出歧义 |
-| 3 | 明确 TTS 职责边界：音频由小程序端魔珐 SDK 合成，后端不再返回 `replyAudioUrl` | 与“SDK 自带 TTS、无需自研”的架构决策保持一致 |
-| 4 | 对话接口多媒体统一为 URL 传输，废弃 `imageBase64` | 同一接口两种传法易超请求体限制 |
-| 5 | 补充业务数据库选型（SQLite 起步） | 原技术栈仅有向量库，业务数据无落地方案 |
-| 6 | 明确 ASR 方案（FunASR 主 + 微信同声传译插件备） | 原仅写“ASR”四字，影响小程序录音格式选型 |
-| 7 | 补充语音情感识别选型（librosa 韵律分析） | 原技术栈缺失此能力，9.2 流程却依赖它 |
-| 8 | 新增 riskLevel → intervention 映射表，理顺 `suggestedAction` 与 `intervention.type` 关系 | 原示例三级配 normal 与 9.3 表述不一致 |
-| 9 | 定义 `digitalHumanAction` 完整枚举 | 原仅一个示例值，两端各自猜测 |
-| 10 | 定义 RiskAlert 状态机 | 原有 status 字段但无流转定义 |
-| 11 | 明确“一键清除”范围含 Mem0 向量库，预警记录保留策略 | 隐私承诺与安全责任需同时成立 |
-| 12 | 新增第十二章《测试话术样例集》 | 三端联调、演示彩排、评委问答需要统一验收基准 |
+**V6.0 → V6.1 → V6.2 → V6.3 修订记录**：
+| # | 修订内容 | 原因 | 版本 |
+| :--- | :--- | :--- | :--- |
+| 1 | 补充会话创建接口 `POST /conversations` 与文件上传接口 `POST /upload` | 原清单缺创建会话入口，`conversationId` 无来源；语音/图像无上传通道 | V6.1 |
+| 2 | 明确 HTTP 状态码与业务 code 的对应关系 | 原错误码表语义含糊，三端联调易出歧义 | V6.1 |
+| 3 | 明确 TTS 职责边界：音频由小程序端魔珐 SDK 合成，后端不再返回 `replyAudioUrl` | 与“SDK 自带 TTS、无需自研”的架构决策保持一致 | V6.1 |
+| 4 | 对话接口多媒体统一为 URL 传输，废弃 `imageBase64` | 同一接口两种传法易超请求体限制 | V6.1 |
+| 5 | 补充业务数据库选型（SQLite 起步） | 原技术栈仅有向量库，业务数据无落地方案 | V6.1 |
+| 6 | 明确 ASR 方案（FunASR 主 + 微信同声传译插件备） | 原仅写“ASR”四字，影响小程序录音格式选型 | V6.1 |
+| 7 | 补充语音情感识别选型（librosa 韵律分析） | 原技术栈缺失此能力，9.2 流程却依赖它 | V6.1 |
+| 8 | 新增 riskLevel → intervention 映射表，理顺 `suggestedAction` 与 `intervention.type` 关系 | 原示例三级配 normal 与 9.3 表述不一致 | V6.1 |
+| 9 | 定义 `digitalHumanAction` 完整枚举 | 原仅一个示例值，两端各自猜测 | V6.1 |
+| 10 | 定义 RiskAlert 状态机 | 原有 status 字段但无流转定义 | V6.1 |
+| 11 | 明确“一键清除”范围含 Mem0 向量库，预警记录保留策略 | 隐私承诺与安全责任需同时成立 | V6.1 |
+| 12 | 新增第十二章《测试话术样例集》 | 三端联调、演示彩排、评委问答需要统一验收基准 | V6.1 |
+| 13 | 小程序技术栈统一为**微信小程序原生**，移除 Uni-app 选项 | 开发计划已按原生方案编排，消除二义性 | V6.2 |
+| 14 | 对话接口 `inputType` 改为 `inputTypes` 数组，支持**多模态组合输入** | 原单选设计无法在一次请求中触发 9.2「文本低风险 + 表情极高痛苦」矛盾场景 | V6.2 |
+| 15 | 数据模型补充 `Message.imageUrl`、`User.updatedAt`、`RiskAlert.updatedAt` | 原模型缺失图像存储字段和更新时间戳 | V6.2 |
+| 16 | `/user/profile` 初始化提交改为 PUT（幂等） | POST 与 PUT 语义重叠，PUT 幂等更安全 | V6.2 |
+| 17 | 9.2 明确「提升一级 = riskLevel 数值减 1」 | 原表述有歧义，开发时可能理解反方向 | V6.2 |
+| 18 | 语音情感识别选型由 librosa 升级为 **emotion2vec+** | 原 librosa 仅提取低阶声学特征，抗噪差且难以表达高阶情绪；emotion2vec+ 为阿里开源 SOTA 语音情感大模型，与 FunASR 深度统一生态，直接输出细粒度情绪分布（悲伤/愤怒/恐惧/中性等离散概率及置信度），与 Py-Feat 视觉情绪对齐 | V6.3 |
 
 ## 二、 项目背景与痛点分析
 1. **目标用户**：外卖骑手、快递员、网约车司机等新就业群体。
@@ -40,7 +46,7 @@
 - **后端与 AI 服务（待指定 1 名主责队员，其余队员支援联调）**：
   - 记忆系统：**Mem0** + **本地向量库**（推荐 Chroma 或 FAISS）。
   - 大模型：**EmoLLM 开源模型**（部署推理，结合 RAG + Prompt）。
-  - 多模态：Py-Feat（表情识别）、**FunASR（语音转文本，主方案）**、**librosa（语音韵律/情感特征提取）**。
+  - 多模态：Py-Feat（表情识别）、**FunASR（语音转文本，主方案）**、**emotion2vec+（语音情感识别大模型，基于 FunASR Pipeline，主选 emotion2vec_plus_base）**。
   - 数字人交互：**魔珐星云 SDK 自带 TTS 和口型驱动，无需自研 TTS**。TTS 职责边界：后端仅返回 `replyText` 与 `digitalHumanAction`，**音频合成与播放全部由小程序端 SDK 完成**，后端不产生任何音频文件。
   - 业务数据库：**SQLite 起步**（黑客松阶段零安装、单文件运行），统一用 SQLAlchemy ORM 建表，后期如需迁移 MySQL 仅改连接串。
 - **接口协作**：Apifox / Swagger 维护，接口变更需同步双方。
@@ -48,15 +54,15 @@
 ## 四、 技术栈确认
 | 模块     | 技术选型                                | 说明 |
 | :------- | :-------------------------------------- | :--- |
-| 小程序端 | 微信小程序原生 / Uni-app + 魔珐星云 SDK | |
+| 小程序端 | 微信小程序原生 + 魔珐星云 SDK | V6.2 统一为原生，移除 Uni-app 选项 |
 | 管理后台 | Vue3 + Element Plus + RBAC              | |
 | 后端框架 | Python FastAPI                          | |
 | 业务数据库 | SQLite（SQLAlchemy ORM）               | V6.1 新增，后期可平滑迁移 MySQL |
 | 记忆系统 | Mem0 + 本地向量库（Chroma / FAISS）     | |
 | 大模型   | EmoLLM 开源模型（量化部署或 API 推理）  | 过渡期可用云端通用大模型 API 保链路 |
 | 表情识别 | Py-Feat                                 | |
-| 语音识别 | **FunASR（主）/ 微信同声传译插件（备）** | V6.1 明确。主方案：音频上传后端统一转文本（音频同时供韵律分析）；备选：FunASR 部署受阻时改用前端插件转文本，随对话请求直接传 `text` |
-| 语音情感识别 | **librosa 韵律分析**                  | V6.1 新增。提取基频（音调）、短时能量（响度）、语速/停顿，输出情感标签（激动/低沉/平静） |
+| 语音识别 | **FunASR（主）/ 微信同声传译插件（备）** | V6.1 明确。主方案：音频上传后端统一转文本（音频同时供情绪识别）；备选：FunASR 部署受阻时改用前端插件转文本，随对话请求直接传 `text` |
+| 语音情感识别 | **emotion2vec+（基于 FunASR Pipeline，主选 emotion2vec_plus_base）** | V6.3 升级。阿里开源 SOTA 语音情感大模型，原生集成于 FunASR 生态，输出标准情绪分布（悲伤/愤怒/恐惧/开心/中性等离散概率与置信度），与视觉表情对齐 |
 | 数字人   | 魔珐星云 SDK（TTS + 口型驱动）          | 音频在端侧合成，后端不返回音频 URL |
 | 接口文档 | Apifox / Swagger                        | |
 
@@ -71,7 +77,7 @@
 ### 5.2 第二步：完善用户基本信息
 - 填写：**年龄、性别、职业**。
 - 职业选项：外卖骑手、快递员、网约车司机、其他新就业形态。
-- 调用 `POST /user/profile` 提交。
+- 调用 `PUT /user/profile` 提交（V6.2 改为 PUT 幂等，首次提交与后续修改统一语义）。
 
 ### 5.3 初始化状态判断
 - 小程序启动调用 `GET /user/init-status`。
@@ -92,7 +98,7 @@
 | **登录与初始化** | 登录         | 微信一键授权登录                                             | P0     |
 |                  | 选数字人     | 首次必选，基于魔珐星云 SDK                                   | P0     |
 |                  | 完善信息     | 年龄、性别、职业                                             | P0     |
-| **心理倾诉**     | 多模态感知   | Py-Feat 表情识别、语音情感识别（librosa）、ASR 语音转文本   | P0     |
+| **心理倾诉**     | 多模态感知   | Py-Feat 表情识别、语音情感识别（emotion2vec+）、ASR 语音转文本 | P0     |
 |                  | AI认知与干预 | Mem0 + 本地向量库记忆；多模态矛盾分析；智能风险识别；RAG 疏导 | P0     |
 |                  | 分级干预     | 一级/二级高危弹窗 + 热线；三级/四级共情疏导                  | P0     |
 |                  | 数字人交互   | 魔珐星云 SDK 自带 TTS 与口型驱动，语音+字幕                  | P0     |
@@ -168,8 +174,7 @@
 | 初始化 | `/user/init-status`   | GET     | 查询初始化状态                                       |
 | 初始化 | `/digital-humans`     | GET     | 魔珐星云数字人列表                                   |
 | 初始化 | `/user/digital-human` | POST    | 保存选中的数字人                                     |
-| 初始化 | `/user/profile`       | POST    | 提交年龄、性别、职业                                 |
-| 用户   | `/user/profile`       | GET/PUT | 获取/修改基本信息                                    |
+| 用户   | `/user/profile`       | GET/PUT | 获取/提交或修改基本信息（V6.2 初始化与修改统一为 PUT） |
 | 文件   | `/upload`             | POST    | **V6.1 新增**。上传音频/图像文件，返回 `fileUrl`，供对话等接口引用 |
 | 会话   | `/conversations`      | POST    | **V6.1 新增**。创建倾诉会话，返回 `conversationId`。小程序进入主界面或开启新话题时调用 |
 | 对话   | `/chat/completions`   | POST    | 发送文本/语音/图像，返回 AI 回复、风险等级、干预动作 |
@@ -181,15 +186,15 @@
 | 资源   | `/self-help`          | GET     | 获取自助资源（轻音乐等）                             |
 | 预警   | `/risk-alerts`        | POST    | 高危时上报预警（可由后端自动生成）                   |
 
-**对话接口示例**：
+**对话接口示例（V6.2 多模态组合输入）**：
 ```json
 POST /chat/completions
 {
   "conversationId": "c_001",
-  "inputType": "audio", // text | audio | image
-  "text": "今天又被罚了200，跑一天白干了",
-  "audioUrl": "https://...",   // inputType=audio 时必填，来自 /upload
-  "imageUrl": "https://...",   // inputType=image 时必填，来自 /upload；V6.1 废弃 imageBase64
+  "inputTypes": ["audio", "image"],  // V6.2 改为数组，支持组合：如 ["text"] | ["audio"] | ["audio", "image"] | ["text", "image"]
+  "text": "今天又被罚了200，跑一天白干了",  // inputTypes 含 "text" 时必填；含 "audio" 时由后端 ASR 转写后自动填充
+  "audioUrl": "https://...",   // inputTypes 含 "audio" 时必填，来自 /upload
+  "imageUrl": "https://...",   // inputTypes 含 "image" 时必填，来自 /upload
   "digitalHumanId": "dh_01"
 }
 ```
@@ -213,7 +218,8 @@ POST /chat/completions
 ```
 *注 1：后端处理时自动调用 Mem0 提取用户历史记忆（本地向量库检索），拼接 Prompt 后请求 EmoLLM。*
 *注 2（V6.1）：音频由小程序端魔珐星云 SDK 合成播放，**后端不返回 `replyAudioUrl`**。*
-*注 3（V6.1）：`inputType=audio` 时若采用备选方案（微信同声传译插件），前端转好文本后仍传 `text` 字段并将 `inputType` 置为 `text`，后端韵律分析用的 `audioUrl` 可为空，此场景下降级为纯文本 + 表情双模态。*
+*注 3（V6.2）：`inputTypes` 含 `"audio"` 时若采用备选方案（微信同声传译插件），前端转好文本后改传 `inputTypes: ["text"]`（或 `["text", "image"]`），后端韵律分析用的 `audioUrl` 可为空，此场景下降级为纯文本（或文本+表情）模态。*
+*注 4（V6.2）：多模态组合输入使 9.2「文本低风险 + 表情极高痛苦」矛盾提升可在**单次请求**内完成判定，无需依赖跨请求上下文。*
 
 **`digitalHumanAction` 枚举（V6.1 新增）**：
 | 枚举值 | 含义 | 数字人表现（小程序端映射） |
@@ -252,11 +258,11 @@ POST /chat/completions
 | 权限   | `/admin/roles`            | GET/POST/PUT        | 角色权限分配（仅超管）   |
 
 ### 8.4 数据模型约定
-- **User**：`id, openid, age, gender, occupation, digitalHumanId, initStatus, createdAt`
+- **User**：`id, openid, age, gender, occupation, digitalHumanId, initStatus, createdAt, updatedAt`（V6.2 新增 `updatedAt`）
 - **DigitalHuman**：`id, name, avatarUrl, prompt, status`
 - **Conversation**：`id, userId, title, createdAt`
-- **Message**：`id, conversationId, role, content, audioUrl, riskLevel, createdAt`
-- **RiskAlert**：`id, userId, conversationId, level, triggerWords, status, handledBy, createdAt`
+- **Message**：`id, conversationId, role, content, audioUrl, imageUrl, riskLevel, createdAt`（V6.2 新增 `imageUrl`）
+- **RiskAlert**：`id, userId, conversationId, level, triggerWords, status, handledBy, createdAt, updatedAt`（V6.2 新增 `updatedAt`）
 - **Hotline**：`id, name, phone, description, level`
 - **AdminAccount**：`id, username, password, roleId, status`
 - **Role**：`id, name, permissions`
@@ -286,7 +292,7 @@ POST /chat/completions
 1. **输入接收**：文本、语音（ASR 转文本）、图像（表情特征）。
 2. **多模态特征提取**：
    - 文本：EmoLLM 生成语义向量 + 情感分类。
-   - 语音：**librosa 提取韵律特征——基频 F0 均值/方差（音调）、短时能量（响度）、语速与停顿比率，输出情感标签（激动/低沉/平静）**；ASR 采用 FunASR 主方案（音频上传后端统一转文本）。
+   - 语音：**通过 emotion2vec+（基于 FunASR Pipeline，主选 emotion2vec_plus_base）提取语音情感分布，输出细粒度情绪概率（悲伤、愤怒、恐惧、中性等概率及置信度）**；ASR 采用 FunASR 主方案（音频上传后端统一转文本）。
    - 表情：Py-Feat 输出情绪概率（悲伤、愤怒、恐惧等）。
 3. **上下文融合**：从 Mem0 本地向量库检索用户近 N 条对话记忆，形成“情绪趋势摘要”。
 4. **综合风险推理**：
@@ -300,10 +306,10 @@ POST /chat/completions
      }
      ```
    - 同时，规则引擎并行计算关键词命中得分（仅作加权，不直接决定等级）。
-5. **最终等级判定**：
+5. **最终等级判定**（V6.2 明确：「提升一级」= riskLevel 数值减 1，即风险等级从低往高走，如四级→3级、三级→2级）：
    - 若模型置信度 ≥ 0.8，以模型输出为准。
-   - 若置信度 < 0.8，则模型得分与规则得分加权融合，取高等级。
-   - 若多模态出现“文本低风险 + 表情/语音极高痛苦”，自动提升一级。
+   - 若置信度 < 0.8，则模型得分与规则得分加权融合，取高等级（数值更小的等级）。
+   - 若多模态出现“文本低风险 + 表情/语音极高痛苦”，自动提升一级（V6.2：`inputTypes` 组合输入使此判定可在单次请求内完成）。
    - 若 Mem0 显示近期情绪持续恶化，自动提升一级。
 6. **干预动作生成**：
    - 由 EmoLLM 根据等级和用户画像，生成共情话术（非模板）。
