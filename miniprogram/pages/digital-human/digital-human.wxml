@@ -1,0 +1,8 @@
+<view class="dh-page safe-top">
+  <web-view wx:if="{{url}}" src="{{url}}" bindload="onWebviewLoad" class="dh-webview" />
+
+  <view wx:if="{{!configured}}" class="dh-fallback">
+    <text>3D 数字人未配置</text>
+    <text style="font-size:20rpx;color:#a2aaa7">请在 backend/.env 填写 DH_APP_ID / DH_APP_SECRET\n（魔珐星云 xingyun3d.com 创建驱动应用获取）\n然后重启后端</text>
+  </view>
+</view>

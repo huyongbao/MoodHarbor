@@ -334,6 +334,21 @@ def self_help_list(db: Session = Depends(get_db)):
     ])
 
 
+# ---------- 3D 数字人 web-view 地址：GET /digital-human/view ----------
+@router.get("/digital-human/view")
+def digital_human_view(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """返回 H5 宿主页完整 URL（含密钥参数）+ 是否已配置。
+    小程序 web-view 直接加载该 URL 即可渲染 3D 数字人。"""
+    from config import DH_APP_ID, DH_APP_SECRET, LLM_MODEL  # noqa
+    from config import DH_APP_ID, DH_APP_SECRET
+    if not DH_APP_ID or not DH_APP_SECRET:
+        return ok({"configured": False, "url": ""})
+    base = os.getenv("PUBLIC_BASE_URL", "http://192.168.110.220:8000")
+    from urllib.parse import quote
+    url = f"{base}/digital-human/index.html?appid={DH_APP_ID}&secret={quote(DH_APP_SECRET)}"
+    return ok({"configured": True, "url": url})
+
+
 # ---------- 预警上报：POST /risk-alerts ----------
 @router.post("/risk-alerts")
 def report_risk_alert(body: dict, user: User = Depends(get_current_user), db: Session = Depends(get_db)):

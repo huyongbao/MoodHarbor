@@ -25,7 +25,8 @@ Page({
     debugSessionId: "",
     cameraHint: "",
     scrollInto: "",
-    inputMode: "voice",           // voice=按住说话（默认）| text=键盘
+    inputMode: "voice",
+    dh3dAvailable: false,  // 3D 数字人是否已配置           // voice=按住说话（默认）| text=键盘
     faceActive: false,            // 表情识别运行中
     faceStatus: "未开启",          // 调试状态：未开启/初始化/运行中/受限
     faceLastResult: "",           // 最近一次表情识别结果
@@ -53,6 +54,10 @@ Page({
     });
     // 自动开启表情识别（倾诉页进入即开，调试状态可见）
     this._initFaceDetect();
+    // 检查 3D 数字人是否已配置
+    api.request("/digital-human/view").then((res) => {
+      this.setData({ dh3dAvailable: !!(res.data && res.data.configured) });
+    }).catch(() => {});
   },
 
   // ---------- 文本输入 ----------
@@ -345,6 +350,15 @@ Page({
           });
         }, 3000);
       },
+    });
+  },
+
+
+  // ================= 3D 数字人（魔珐星云 web-view）=================
+  openDigitalHuman(e) {
+    const text = (e && e.currentTarget && e.currentTarget.dataset.text) || "";
+    wx.navigateTo({
+      url: "/pages/digital-human/digital-human" + (text ? "?speak=" + encodeURIComponent(text) : ""),
     });
   },
 

@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+<title>小满 · 3D 数字人</title>
+<style>
+  html, body { margin: 0; padding: 0; height: 100%; background: linear-gradient(165deg, #e2eee8, #f4eee3); overflow: hidden; }
+  #sdk { width: 100vw; height: 100vh; }
+  .hint {
+    position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%);
+    color: #779189; font-size: 14px; text-align: center; font-family: -apple-system, "PingFang SC", sans-serif;
+    line-height: 1.8; z-index: 0;
+  }
+  .hint.error { color: #a95e50; }
+</style>
+</head>
+<body>
+<div id="sdk"></div>
+<div class="hint" id="hint">数字人正在唤醒中…</div>
+<script src="https://media.xingyun3d.com/xingyun3d/general/litesdk/xmovAvatar@latest.js"></script>
+<script>
+/**
+ * 魔珐星云 3D 数字人宿主页（小程序 web-view 载体）
+ * —— 数据流 ——
+ *   小程序 web-view URL 带 dh_appid/dh_secret → 本页初始化 XmovAvatar → 3D 渲染
+ *   小程序 wx.miniProgram.postMessage({type:'speak', text}) → SDK speak() 数字人开口说话
+ *   SDK onStateChange → postMessage 回小程序（连接状态）
+ * URL 参数（GET）：
+ *   appid  —— 魔珐星云驱动应用 appId（必填）
+ *   secret —— 驱动应用 appSecret（必填；生产建议改由后端签发临时 token）
+ */
+(function () {
+  var qs = new URLSearchParams(location.search);
+  var appId = qs.get("appid") || "";
+  var appSecret = qs.get("secret") || "";
+  var hintEl = document.getElementById("hint");
+
+  function setHint(text, isError) {
+    hintEl.textContent = text;
+    hintEl.className = "hint" + (isError ? " error" : "");
+  }
+
+  if (!appId || !appSecret) {
+    setHint("未配置数字人应用密钥（DH_APP_ID / DH_APP_SECRET）\n请在 backend/.env 中填写后重启", true);
+    return;
+  }
+
+  setHint("数字人正在唤醒中…（首次加载约 10-30 秒）");
+
+  var sdk = new XmovAvatar({
+    containerId: "#sdk",
+    appId: appId,
+    appSecret: appSecret,
+    gatewayServer: "https://nebula-agent.xingyun3d.com/user/v1/ttsa/session",
+    hardwareAcceleration: "prefer-hardware",
+    enableLogger: false,
+    onStateChange: function (state) {
+      // 状态回传小程序
+      try {
+        wx.miniProgram.postMessage({ data: { type: "dh_state", state: String(state) } });
+      } catch (e) {}
+      if (String(state) === "idle" || String(state) === "interactive_idle") {
+        setHint("");
+        try {
+          wx.miniProgram.postMessage({ data: { type: "dh_ready" } });
+        } catch (e) {}
+      }
+    },
+    onMessage: function (message) {
+      console.warn("SDK message:", message);
+      try {
+        wx.miniProgram.postMessage({ data: { type: "dh_error", code: message.code, msg: message.message } });
+      } catch (e) {}
+      if (message.code >= 10001 && message.code <= 10005) {
+        setHint("数字人连接失败（" + message.code + "）：" + message.message, true);
+      }
+    },
+    onNetworkInfo: function (info) {
+      console.log("network:", info);
+    },
+    onVoiceStateChange: function (status) {
+      // 语音播报状态回传（小程序可显示"正在说话/已说完"）
+      try {
+        wx.miniProgram.postMessage({ data: { type: "voice_state", status: String(status) } });
+      } catch (e) {}
+    },
+  });
+
+  // ---- 桥接：小程序 → 数字人说话 ----
+  // web-view 内无法直接收 postMessage（微信限制：仅网页→小程序单向），
+  // 因此小程序通过 URL hash 变化传递 speak 指令：
+  // location.hash = '#speak=' + encodeURIComponent(text)
+  var lastHash = "";
+  function checkHash() {
+    if (location.hash !== lastHash) {
+      lastHash = location.hash;
+      var m = /speak=([\s\S]+)/.exec(decodeURIComponent(lastHash.replace(/^#/, "")) || "");
+      if (m) {
+        var text = m[1];
+        if (text) {
+          sdk.speak(text, true, true);
+          setHint("");
+        }
+      }
+    }
+  }
+  setInterval(checkHash, 300);
+
+  // ---- 初始化连接 ----
+  sdk.initModel
+    ? sdk.initModel("normal")
+    : (sdk.init && sdk.init(function (p) { if (p >= 100) setHint(""); }));
+})();
+</script>
+</body>
+</html>

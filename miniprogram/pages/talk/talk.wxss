@@ -178,3 +178,12 @@
 }
 .face-status.on { color: #3f8f6f; }
 .face-status.off { color: #b47f54; }
+
+/* 3D 数字人徽标（hero 形象角标，点击进入 3D 模式）*/
+.dh3d-badge {
+  position: absolute; left: 12rpx; top: 12rpx; z-index: 5;
+  padding: 4rpx 14rpx; border-radius: var(--radius-pill);
+  background: linear-gradient(135deg, #729f90, #426f63); color: #fff;
+  font-size: 18rpx; font-weight: 700; letter-spacing: 1rpx;
+  box-shadow: 0 4rpx 12rpx rgba(40, 70, 60, 0.3);
+}

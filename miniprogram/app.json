@@ -12,7 +12,8 @@
     "pages/profile-edit/profile-edit",
     "pages/companion-edit/companion-edit",
     "pages/resources/resources",
-    "pages/hotlines/hotlines"
+    "pages/hotlines/hotlines",
+    "pages/digital-human/digital-human"
   ],
   "window": {
     "navigationBarTitleText": "情绪树洞",
@@ -22,7 +23,9 @@
     "backgroundTextStyle": "dark",
     "enablePullDownRefresh": false
   },
-  "requiredPrivateInfos": ["chooseAddress"],
+  "requiredPrivateInfos": [
+    "chooseAddress"
+  ],
   "permission": {
     "scope.record": {
       "desc": "用于语音倾诉，你的语音仅用于情绪识别与回复"

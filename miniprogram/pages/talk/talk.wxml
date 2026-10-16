@@ -25,8 +25,9 @@
       <view class="halo halo-two"></view>
       <view class="leaf leaf-left"></view>
       <view class="leaf leaf-right"></view>
-      <view class="companion-figure">
+      <view class="companion-figure" bindtap="openDigitalHuman">
         <image class="companion-figure-img" src="{{companion.avatarUrl}}" mode="aspectFill" />
+        <view wx:if="{{dh3dAvailable}}" class="dh3d-badge">3D</view>
       </view>
       <view class="online-dot"></view>
     </view>

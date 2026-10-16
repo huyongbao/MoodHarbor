@@ -37,6 +37,10 @@ LLM_BASE_URL = os.getenv("LLM_BASE_URL", "http://121.43.195.133:28479/v1")
 LLM_API_KEY = os.getenv("LLM_API_KEY", "")  # 从环境变量读取，不进代码库
 LLM_MODEL = os.getenv("LLM_MODEL", "glm-5.3")
 
+# ---- 魔珐星云 3D 数字人（web-view H5 宿主页）----
+DH_APP_ID = os.getenv("DH_APP_ID", "")      # 魔珐星云驱动应用 appId
+DH_APP_SECRET = os.getenv("DH_APP_SECRET", "")  # 驱动应用 appSecret
+
 # ---- 风险分级（PRD 9.2）----
 RISK_CONFIDENCE_THRESHOLD = 0.8  # 模型置信度 ≥ 0.8 直接采信
 

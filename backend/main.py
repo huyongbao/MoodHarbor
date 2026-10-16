@@ -44,6 +44,11 @@ app.include_router(debug_router, prefix="/api/v1")
 # 上传文件静态服务（开发期；正式版换对象存储/CDN）
 import os
 os.makedirs(UPLOAD_DIR, exist_ok=True)
+
+# 3D 数字人宿主页（魔珐星云 SDK，小程序 web-view 载体）
+from fastapi.staticfiles import StaticFiles as _SMS
+app.mount("/digital-human", _SMS(directory=os.path.join(os.path.dirname(__file__), "digital_human"), html=True), name="digital-human")
+
 app.mount("/uploads", StaticFiles(directory=UPLOAD_DIR), name="uploads")
 
 
