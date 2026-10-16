@@ -59,10 +59,12 @@
     enableLogger: true,
     onStateChange: function (state) {
       // 状态回传小程序（SDK 状态机：init → rendering → pausing/paused → resumed → stopped）
+      window.dhStates = window.dhStates || [];
+      window.dhStates.push(String(state) + "@" + Date.now() % 100000);
       try {
         wx.miniProgram.postMessage({ data: { type: "dh_state", state: String(state) } });
       } catch (e) {}
-      if (String(state) === "rendering" || String(state) === "resumed") {
+      if (String(state) === "rendering" || String(state) === "resumed" || String(state) === "interactive_idle") {
         setHint("");
         try {
           wx.miniProgram.postMessage({ data: { type: "dh_ready" } });
@@ -101,7 +103,7 @@
       if (m) {
         var text = m[1];
         if (text) {
-          sdk.speak(text, true, true);
+          window.dhSpeakLog = window.dhSpeakLog || []; window.dhSpeakLog.push({t: Date.now(), text: text.slice(0, 20)}); sdk.speak(text, true, true);
           setHint("");
         }
       }
@@ -111,16 +113,19 @@
 
   // ---- 初始化连接 ----
   // SDK v2.4.1：init({ onDownloadProgress, initModel }) 建立会话
+  var initDone = false; // 防止 100% 回调在 init 完成后覆盖就绪提示
   sdk.init({
     initModel: "normal",
     onDownloadProgress: function (p) {
-      setHint(dhName + "资源加载 " + p + "%");
+      if (!initDone) setHint(dhName + "资源加载 " + p + "%");
     },
   }).then(function () {
     // init 完成：资源已就绪（TTSA 连接已建立），清提示
+    initDone = true;
     setHint("");
     try { wx.miniProgram.postMessage({ data: { type: "dh_ready" } }); } catch (e) {}
   }).catch(function (err) {
+    initDone = true;
     setHint("数字人初始化失败：" + (err && (err.message || err)), true);
   });
 })();
