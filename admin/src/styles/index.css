@@ -1,0 +1,35 @@
+* {
+  box-sizing: border-box;
+}
+html,
+body,
+#app {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+body {
+  font-family: 'PingFang SC', 'Microsoft YaHei', 'Helvetica Neue', sans-serif;
+  background-color: #f5f7fa;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* 通用页面工具类 */
+.page {
+  padding: 16px;
+}
+.filter-bar {
+  margin-bottom: 12px;
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.muted {
+  color: #909399;
+  font-size: 12px;
+}
+.table-pager {
+  margin-top: 12px;
+  justify-content: flex-end;
+}
