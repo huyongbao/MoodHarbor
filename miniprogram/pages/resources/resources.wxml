@@ -1,0 +1,38 @@
+<view class="detail-view safe-top">
+  <view class="page-header">
+    <van-button custom-class="btn-round" bindtap="onBack" aria-label="返回"><van-icon name="arrow-left" size="20px" /></van-button>
+    <text class="ph-title">自助放松</text>
+    <view class="header-spacer"></view>
+  </view>
+
+  <!-- 此刻推荐 hero -->
+  <view class="resource-hero">
+    <view class="rh-kicker">此刻推荐</view>
+    <view class="rh-title">先做一次深呼吸</view>
+    <view class="rh-sub">不用赶时间，跟着节奏慢慢来</view>
+    <van-button custom-class="rh-btn" bindtap="onPlay" data-title="3 分钟呼吸放松"><van-icon name="play-circle" size="16px" /> 开始 3 分钟练习</van-button>
+  </view>
+
+  <view class="section-heading">
+    <view class="sh-title">更多资源</view>
+    <view class="sh-sub">按你的状态选择</view>
+  </view>
+
+  <view class="resource-list">
+    <view
+      wx:for="{{items}}"
+      wx:key="id"
+      class="resource-item"
+      bindtap="onPlay"
+      data-title="{{item.title}}"
+    >
+      <view class="resource-art art-{{index + 1}}"></view>
+      <view class="ri-copy">
+        <view class="ri-dur">{{item.duration}}</view>
+        <view class="ri-title">{{item.title}}</view>
+        <view class="ri-desc">{{item.desc}}</view>
+      </view>
+      <view class="ri-play"><van-icon name="play-circle" size="18px" /></view>
+    </view>
+  </view>
+</view>

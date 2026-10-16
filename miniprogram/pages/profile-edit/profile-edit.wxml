@@ -1,0 +1,55 @@
+<view class="setup-view safe-top">
+  <view class="setup-progress">
+    <view class="bar active"></view>
+    <view class="bar active"></view>
+    <view class="progress-num"></view>
+  </view>
+
+  <view class="eyebrow">让陪伴更懂你</view>
+  <view class="setup-h1">简单认识一下</view>
+  <view class="setup-intro">只用于提供更贴合的回应，不会在任何地方公开。</view>
+
+  <!-- 年龄 -->
+  <view class="form-block">
+    <label>你的年龄</label>
+    <view class="age-input">
+      <van-button custom-class="age-btn" bindtap="onAgeMinus"><van-icon name="minus" size="18px" /></van-button>
+      <input class="age-value" type="text" value="{{age}}" bindinput="onAgeInput" />
+      <text class="age-unit">岁</text>
+      <van-button custom-class="age-btn" bindtap="onAgePlus"><van-icon name="plus" size="18px" /></van-button>
+    </view>
+  </view>
+
+  <!-- 性别 -->
+  <view class="form-block">
+    <label>你的性别</label>
+    <view class="choice-grid gender-grid">
+      <van-button
+        wx:for="{{genders}}"
+        wx:key="*this"
+        class="choice {{gender === item ? 'selected' : ''}}"
+        data-v="{{item}}"
+        bindtap="onGender"
+      >{{item}}</van-button>
+    </view>
+  </view>
+
+  <!-- 职业（PRD 四选项）-->
+  <view class="form-block">
+    <label>你的职业</label>
+    <view class="choice-grid">
+      <van-button
+        wx:for="{{jobs}}"
+        wx:key="*this"
+        class="choice {{job === item ? 'selected' : ''}}"
+        data-v="{{item}}"
+        bindtap="onJob"
+      >{{item}}</van-button>
+    </view>
+  </view>
+
+  <view class="sticky-actions">
+    <van-button custom-class="btn-primary" bindtap="onSave">保存修改<van-icon name="arrow" size="14px" custom-style="opacity:.6" /></van-button>
+    <view class="encrypt-note"><van-icon name="shield-o" size="12px" /> 资料已加密，仅用于个性化陪伴</view>
+  </view>
+</view>

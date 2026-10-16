@@ -1,0 +1,43 @@
+/* companion-select —— 选择陪伴者（初始化第一步）*/
+.setup-view { min-height: 100vh; padding: 52rpx 41rpx 160rpx; box-sizing: border-box; position: relative; }
+
+.setup-progress { display: flex; gap: 11rpx; align-items: center; margin-bottom: 65rpx; }
+.setup-progress .bar { width: 84rpx; height: 7rpx; border-radius: 7rpx; background: #dfe5e2; }
+.setup-progress .bar.active { background: #558174; }
+.progress-num { margin-left: auto; color: #82928d; font-size: 19rpx; }
+
+.setup-h1 { margin-top: 11rpx; color: var(--text-strong); font-size: 48rpx; font-weight: 700; }
+.setup-intro { margin: 17rpx 0 37rpx; color: #83918d; font-size: 21rpx; line-height: 1.6; }
+
+/* 陪伴者卡片 */
+.companion-options { display: grid; gap: 19rpx; }
+.option {
+  min-height: 190rpx; padding: 19rpx 24rpx;
+  display: flex; align-items: center; gap: 22rpx;
+  border: 3rpx solid transparent; border-radius: 37rpx; background: #fff;
+  transition: border 0.2s, background 0.2s;
+}
+.option.selected { border-color: #5e897d; background: #edf3f0; }
+
+/* 真实数字人形象（数据来自管理后台 DigitalHuman.avatarUrl）*/
+.portrait-wrap { position: relative; flex: 0 0 140rpx; width: 140rpx; height: 147rpx; overflow: hidden; border-radius: 45rpx; background: #dce9e3; box-shadow: 0 8rpx 20rpx rgba(40, 70, 60, 0.12); }
+.portrait-img { width: 100%; height: 100%; }
+
+.option-copy { flex: 1; }
+.option-name { display: flex; align-items: center; gap: 15rpx; font-size: 26rpx; color: #445e57; font-weight: 600; }
+.option-trait { padding: 6rpx 11rpx; border-radius: 15rpx; background: rgba(86, 131, 118, 0.1); color: #65857c; font-size: 15rpx; font-weight: 500; }
+.option-quote { margin-top: 13rpx; color: #8b9793; font-size: 19rpx; }
+
+.radio-mark { width: 37rpx; height: 37rpx; display: flex; align-items: center; justify-content: center; border: 3rpx solid #cad4d0; border-radius: 50%; }
+.option.selected .radio-mark { border-color: #4f7d70; }
+.radio-mark .radio-dot { width: 19rpx; height: 19rpx; border-radius: 50%; background: transparent; }
+.option.selected .radio-mark .radio-dot { background: #4f7d70; }
+
+/* 底部固定操作区 */
+.sticky-actions { position: fixed; left: 41rpx; right: 41rpx; bottom: 52rpx; z-index: 10; }
+
+.chevron {
+  width: 16rpx; height: 16rpx;
+  border-top: 4rpx solid currentColor; border-right: 4rpx solid currentColor;
+  transform: rotate(45deg); margin-top: -4rpx;
+}

@@ -1,0 +1,54 @@
+<view class="sub-view safe-top">
+  <view class="sub-header">
+    <view>
+      <view class="eyebrow">照顾自己，从了解开始</view>
+      <view class="page-title">我的</view>
+    </view>
+    <van-button custom-class="round-action" aria-label="设置"><van-icon name="setting-o" size="17px" /></van-button>
+  </view>
+
+  <!-- 用户卡 -->
+  <view class="profile-card">
+    <view class="profile-avatar"><text>林</text></view>
+    <view class="pc-copy">
+      <view class="pc-name">夜行者 0836</view>
+      <view class="pc-sub">已安心相伴 28 天</view>
+    </view>
+    <view class="profile-badge">平稳</view>
+  </view>
+
+  <!-- 我的陪伴 -->
+  <view class="group-title">我的陪伴</view>
+  <view class="companion-card" bindtap="goCompanionEdit">
+    <view class="portrait-wrap">
+      <image class="portrait-img" src="{{companion.avatarUrl}}" mode="aspectFill" />
+    </view>
+    <view class="cc-copy">
+      <view class="cc-name">数字疏导师 · {{companion.name || "小愈"}}</view>
+      <view class="cc-sub">{{companion.trait || "温柔耐心"}}地陪你慢慢说</view>
+    </view>
+    <van-icon name="arrow" size="14px" custom-style="opacity:.6" />
+  </view>
+
+  <!-- 个人与安全 -->
+  <view class="group-title">个人与安全</view>
+  <view class="settings-list">
+    <view class="setting-item" bindtap="goProfileEdit">
+      <view class="setting-icon"><van-icon name="user-o" size="17px" /></view>
+      <view class="setting-label">基本信息<view class="sl-sub">{{profile.occupation || '—'}} · {{profile.age || '—'}} 岁</view></view>
+      <van-icon name="arrow" size="12px" custom-style="opacity:.5" />
+    </view>
+    <view class="setting-item" bindtap="goResources">
+      <view class="setting-icon"><van-icon name="bookmark-o" size="17px" /></view>
+      <view class="setting-label">自助资源<view class="sl-sub">呼吸、放松与睡眠</view></view>
+      <van-icon name="arrow" size="12px" custom-style="opacity:.5" />
+    </view>
+    <view class="setting-item" bindtap="goHotlines">
+      <view class="setting-icon"><van-icon name="headphones-o" size="17px" /></view>
+      <view class="setting-label">心理援助热线<view class="sl-sub">需要时，随时可用</view></view>
+      <van-icon name="arrow" size="12px" custom-style="opacity:.5" />
+    </view>
+  </view>
+
+  <view class="disclaimer">情绪树洞提供心理支持与陪伴，不替代专业医疗诊断。</view>
+</view>

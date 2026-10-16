@@ -1,0 +1,33 @@
+<view class="detail-view safe-top">
+  <view class="page-header">
+    <van-button custom-class="btn-round" bindtap="onBack" aria-label="返回"><van-icon name="arrow-left" size="20px" /></van-button>
+    <text class="ph-title">更换陪伴者</text>
+    <view class="header-spacer"></view>
+  </view>
+
+  <view class="setup-intro standalone">选择让你最放松的声音与陪伴方式。</view>
+
+  <view class="companion-options compact">
+    <view
+      wx:for="{{companions}}"
+      wx:key="id"
+      class="option {{selectedId === item.id ? 'selected' : ''}}"
+      data-id="{{item.id}}"
+      bindtap="onSelect"
+    >
+      <view class="portrait-wrap {{item.className}}">
+        <image class="portrait-img" src="{{item.avatarUrl}}" mode="aspectFill" lazy-load />
+      </view>
+      <view class="option-copy">
+        <view class="option-name">
+          {{item.name}}
+          <view class="option-trait">{{item.trait}}</view>
+        </view>
+        <view class="option-quote">“{{item.quote || '慢慢说，我一直在听'}}”</view>
+      </view>
+      <view class="radio-mark"><view class="radio-dot"></view></view>
+    </view>
+  </view>
+
+  <van-button custom-class="btn-primary page-bottom" bindtap="onConfirm">确认更换</van-button>
+</view>

@@ -1,0 +1,67 @@
+<view class="dashboard safe-top">
+  <!-- 头部问候 -->
+  <view class="dashboard-header">
+    <view>
+      <view class="eyebrow">{{greeting}}</view>
+      <view class="page-title">今天辛苦了</view>
+    </view>
+    <view class="home-avatar" bindtap="goProfile">
+      <image class="portrait-img" src="{{companion.avatarUrl}}" mode="aspectFill" />
+    </view>
+  </view>
+
+  <!-- 倾诉主卡 -->
+  <view class="continue-card" bindtap="goTalk">
+    <view class="continue-copy">
+      <view class="live-pill"><view class="live-dot"></view>{{companion.name || "小愈"}} 在线</view>
+      <view class="continue-title">有话想说，就来坐一会儿</view>
+      <view class="continue-sub">不用组织语言，想到哪儿说到哪儿</view>
+      <view class="start-pill"><van-icon name="audio" size="15px" /> 开始倾诉</view>
+    </view>
+    <view class="home-companion">
+      <image class="portrait-img-lg" src="{{companion.avatarUrl}}" mode="aspectFill" />
+    </view>
+  </view>
+
+  <!-- 停车安全提示 -->
+  <view class="shift-note">
+    <view class="shift-icon">
+      <view class="shift-i"></view>
+      <view class="shift-b"></view>
+    </view>
+    <view class="shift-copy">
+      <view class="shift-strong">先照顾好自己，再继续出发</view>
+      <view class="shift-sub">短暂停靠时，请先确认车辆已停稳</view>
+    </view>
+  </view>
+
+  <!-- 快速帮助 -->
+  <view class="section-heading">
+    <view class="sh-title">快速帮助</view>
+    <view class="sh-sub">一步就能找到</view>
+  </view>
+  <view class="quick-grid">
+    <view class="quick-item" bindtap="goResources">
+      <view class="quick-icon breathe"></view>
+      <view class="quick-strong">放松一下</view>
+      <view class="quick-sub">3 分钟舒缓紧绷</view>
+    </view>
+    <view class="quick-item" bindtap="goHistory">
+      <view class="quick-icon memory">🕘</view>
+      <view class="quick-strong">继续上次</view>
+      <view class="quick-sub">回到之前的对话</view>
+    </view>
+  </view>
+
+  <!-- 援助热线 -->
+  <view class="help-strip" bindtap="goHotlines">
+    <view class="help-icon"><van-icon name="phone" size="18px" /></view>
+    <view class="help-copy">
+      <view class="help-strong">现在特别难熬？</view>
+      <view class="help-sub">专业援助热线随时在这里</view>
+    </view>
+    <van-icon name="arrow" size="14px" custom-style="opacity:.6" />
+  </view>
+
+  <view class="privacy-note"><van-icon name="shield-o" size="13px" /> 你的倾诉已加密保护，不会公开给他人</view>
+</view>

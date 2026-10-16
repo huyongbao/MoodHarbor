@@ -1,0 +1,263 @@
+/* ============================================
+   情绪树洞 · 全局样式与设计 Token
+   提取自 figma_demo 设计规范（402px 基准 → 750rpx，×1.865）
+   ============================================ */
+
+page {
+  /* ---- 色彩：主色（鼠尾草绿）---- */
+  --color-primary-900: #24443c;
+  --color-primary-800: #1f3b34;
+  --color-primary-700: #3f7064;
+  --color-primary-600: #4f7c70;
+  --color-primary-500: #557e72;
+  --color-primary-400: #72aa8f;
+  --color-primary-300: #8aaa94;
+  --color-primary-200: #dcebe4;
+  --color-primary-100: #e8efea;
+
+  /* ---- 底色 ---- */
+  --color-page: #f7f5ef;        /* 页面底：米白，不是纯白 */
+  --color-panel: #e5eee9;       /* 浅绿信息卡 */
+  --color-card-warm: #fffaf2;  /* 暖白卡片 */
+  --color-white: #ffffff;
+
+  /* ---- 点缀（暖橙/赭）---- */
+  --color-accent-300: #efc297;
+  --color-accent-500: #e19472;
+  --color-accent-600: #c99670;
+  --color-danger-warm: #a95f50;  /* 紧急类：暖赭红，禁止正红 */
+  --color-danger-soft: #fff1ed;
+  --color-wechat: #07c160;
+
+  /* ---- 文字 ---- */
+  --text-strong: #1f3b34;
+  --text-body: #4a655e;
+  --text-secondary: #7d8c87;
+  --text-muted: #91a09b;
+  --text-disabled: #a2aaa7;
+  --text-on-dark-sub: rgba(255, 255, 255, 0.7);
+
+  /* ---- 描边（低透明度绿灰）---- */
+  --line-card: rgba(65, 96, 88, 0.08);
+  --line-input: rgba(66, 99, 90, 0.1);
+
+  /* ---- 阴影 ---- */
+  --shadow-card: 0 32rpx 60rpx rgba(40, 75, 66, 0.08);
+  --shadow-btn: 0 20rpx 45rpx rgba(47, 99, 85, 0.2);
+  --shadow-hero: 0 32rpx 60rpx rgba(48, 91, 79, 0.2);
+
+  /* ---- 圆角 ---- */
+  --radius-pill: 999rpx;
+  --radius-card: 41rpx;    /* 22px */
+  --radius-card-m: 34rpx;  /* 18px */
+  --radius-btn: 32rpx;     /* 17px */
+  --radius-input: 30rpx;   /* 16px */
+  --radius-bubble: 32rpx;  /* 17px，尾角 7rpx */
+
+  /* ---- 字号 ---- */
+  --font-display: 56rpx;   /* 引导页大标题 29px(近30) */
+  --font-h1: 43rpx;        /* 23px */
+  --font-h2: 32rpx;        /* 17px */
+  --font-h3: 26rpx;        /* 14px */
+  --font-body: 24rpx;      /* 12px，正文最小 */
+  --font-body-s: 22rpx;    /* 气泡/列表主文案 11px */
+  --font-caption: 19rpx;   /* 9px 辅助 */
+  --font-caption-s: 17rpx; /* 8px 免责 */
+
+  /* ---- 间距 ---- */
+  --space-page: 40rpx;     /* 页面左右 20-22px */
+
+  background: var(--color-page);
+  color: var(--text-body);
+  font-size: var(--font-body);
+  font-family: -apple-system, "PingFang SC", "Noto Sans SC", "Helvetica Neue", sans-serif;
+}
+
+/* ---------- 自定义导航页面的安全区（状态栏 + 微信胶囊）----------
+   所有 navigationStyle:custom 页面的最外层容器必须加此类，
+   否则顶部内容被系统状态栏/胶囊按钮遮挡。 */
+.safe-top {
+  padding-top: calc(env(safe-area-inset-top) + 88rpx) !important;
+  box-sizing: border-box;
+}
+
+/* ---------- 通用原子类 ---------- */
+
+/* 眉题/小标签：必须 letter-spacing */
+.eyebrow {
+  color: #779189;
+  font-size: 21rpx;
+  font-weight: 600;
+  letter-spacing: 4rpx;
+}
+
+.page-title {
+  color: var(--text-strong);
+  font-size: var(--font-h1);
+  font-weight: 700;
+  line-height: 1.3;
+  letter-spacing: -1rpx;
+}
+
+/* 主按钮：#3f7064 全宽、圆角 17px、绿投影 */
+.btn-primary {
+  min-height: 97rpx;
+  width: 100%;
+  border: 0;
+  border-radius: var(--radius-btn);
+  background: var(--color-primary-700);
+  color: #fff;
+  font-size: 26rpx;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 15rpx;
+  box-shadow: var(--shadow-btn);
+}
+.btn-primary::after { border: 0; }
+.btn-primary:active { opacity: 0.88; }
+
+/* 圆形操作钮（返回/更多） */
+.btn-round {
+  width: 68rpx;
+  height: 68rpx;
+  border: 0;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.68);
+  color: #58756d;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  line-height: 1;
+}
+.btn-round::after { border: 0; }
+
+/* 卡片：白底 + 低透明度绿灰描边 + 柔和投影 */
+.card {
+  background: #fff;
+  border: 1rpx solid var(--line-card);
+  border-radius: var(--radius-card-m);
+  box-shadow: var(--shadow-card);
+}
+
+/* 隐私提示行 */
+.privacy-note {
+  margin-top: 45rpx;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 9rpx;
+  color: var(--text-muted);
+  font-size: var(--font-caption);
+}
+
+/* 通用表单块 */
+.form-block { margin-top: 43rpx; }
+.form-block > label {
+  display: block;
+  margin-bottom: 19rpx;
+  color: #516a63;
+  font-size: var(--font-body);
+  font-weight: 600;
+}
+
+/* ========== 按钮样式（全局化，供 van-button custom-class 使用）========== */
+.skip-button {
+  position: absolute;
+  z-index: 5;
+  right: 41rpx;
+  top: calc(env(safe-area-inset-top) + 20rpx);
+  border: 0;
+  background: transparent;
+  color: #738780;
+  font-size: 24rpx;
+  line-height: 1;
+  padding: 8rpx 0;
+}
+.skip-button::after { border: 0; }
+.wechat-button {
+  width: 100%; min-height: 101rpx; border: 0; border-radius: 32rpx;
+  background: var(--color-wechat); color: #fff;
+  display: flex; justify-content: center; align-items: center; gap: 17rpx;
+  font-weight: 600; font-size: 30rpx;
+  box-shadow: 0 22rpx 45rpx rgba(7, 193, 96, 0.16);
+}
+.wechat-button::after { border: 0; }
+.age-btn {
+  width: 101rpx; height: 100%; border: 0; background: #f0f4f2; color: #54786e;
+  font-size: 41rpx; line-height: 1; padding: 0;
+  display: flex; align-items: center; justify-content: center;
+}
+.age-btn::after { border: 0; }
+.choice {
+  width: 100%;
+  min-height: 88rpx; border: 1rpx solid rgba(63, 100, 90, 0.1); border-radius: 26rpx;
+  background: #fff; color: #6d817b; font-size: 21rpx; display: flex; align-items: center; justify-content: center;
+  padding: 0;
+}
+.choice::after { border: 0; }
+.choice.selected { border-color: #5c887b; background: #e7efeb; color: #37665a; font-weight: 600; }
+.hc-dial {
+  min-height: 71rpx; padding: 0 22rpx; display: flex; gap: 9rpx; align-items: center; justify-content: center;
+  border: 0; border-radius: 24rpx; background: #e1ede7; color: #467568; font-size: 17rpx;
+}
+.hc-dial::after { border: 0; }
+.emergency-link {
+  width: 100%; margin-top: 34rpx; min-height: 86rpx; line-height: 86rpx;
+  border: 1rpx solid rgba(173, 89, 69, 0.15); border-radius: 28rpx;
+  background: var(--color-danger-soft); color: #a95e50; font-size: 17rpx; padding: 0;
+}
+.emergency-link::after { border: 0; }
+.emergency-call {
+  width: 100%; min-height: 88rpx; margin-top: 15rpx; display: flex; justify-content: center; align-items: center; gap: 11rpx;
+  border: 0; border-radius: 26rpx; background: var(--color-danger-warm); color: #fff; font-size: 21rpx; font-weight: 600;
+}
+.emergency-call::after { border: 0; }
+.ib-btn {
+  width: 78rpx; height: 78rpx; border: 0; border-radius: 50%; background: #e8efea; color: #54786e;
+  font-size: 32rpx; display: flex; align-items: center; justify-content: center; padding: 0; line-height: 1;
+}
+.ib-btn::after { border: 0; }
+.ib-send {
+  min-height: 78rpx; padding: 0 34rpx; border: 0; border-radius: var(--radius-pill);
+  background: var(--color-primary-700); color: #fff; font-size: 24rpx; font-weight: 600;
+  display: flex; align-items: center;
+}
+.ib-send::after { border: 0; }
+.rh-btn {
+  margin-top: 39rpx; min-height: 78rpx; padding: 0 28rpx; display: inline-flex; gap: 13rpx; align-items: center;
+  border: 0; border-radius: 26rpx; background: #fff; color: #406a5f; font-size: 19rpx; font-weight: 600;
+}
+.rh-btn::after { border: 0; }
+.round-action {
+  width: 69rpx; height: 69rpx; display: flex; align-items: center; justify-content: center;
+  border: 1rpx solid rgba(52, 88, 78, 0.08); border-radius: 50%; background: #fff; color: #68837b;
+  font-size: 26rpx; padding: 0; line-height: 1;
+}
+.round-action::after { border: 0; }
+.text-action { border: 0; background: transparent; color: #8d6a5d; font-size: 19rpx; padding: 0; line-height: 1.5; }
+.text-action::after { border: 0; }
+.modal-close-btn {
+  width: 100%; margin-top: 24rpx; border: 0; background: transparent; color: #8e9c97; font-size: 17rpx; line-height: 1.5; }
+.modal-close-btn::after { border: 0; }
+
+/* 补充：组合态按钮样式 */
+.ib-btn.recording { background: var(--color-danger-warm); color: #fff; }
+.emergency-call.secondary { background: #f2e3de; color: #90564a; }
+.choice.selected { border-color: #5c887b; background: #e7efeb; color: #37665a; font-weight: 600; }
+.ib-send[disabled] { opacity: 0.5; }
+
+/* Vant button 默认样式重置：让自定义 class 完全接管外观 */
+van-button { display: block; }
+.van-button { border: 0 !important; background: transparent !important; padding: 0 !important; line-height: inherit !important; }
+.van-button::after { border: 0 !important; }
+
+/* 修复：van-button 尺寸与布局重置
+   1. van-button 外壳不再强制 block（行内按钮按内容收缩）
+   2. 圆形/小按钮类需要外壳收缩，宽度交给 custom-class 控制 */
+van-button { display: inline-flex; align-items: center; justify-content: center; }
+van-button.btn-primary, van-button.wechat-button, van-button.emergency-link,
+van-button.emergency-call, van-button.choice { display: flex; }
+van-button .van-button { width: auto; min-width: 0; }

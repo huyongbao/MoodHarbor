@@ -1,0 +1,45 @@
+/* resources —— 自助放松 */
+@import "../history-detail/history-detail.wxss";
+
+.header-spacer { width: 68rpx; }
+
+.resource-hero {
+  padding: 43rpx; border-radius: 45rpx;
+  background: linear-gradient(145deg, #466f65, #7d9d92); color: #fff;
+  box-shadow: 0 28rpx 56rpx rgba(50, 89, 78, 0.17);
+}
+.rh-kicker { font-size: 17rpx; opacity: 0.7; letter-spacing: 2rpx; }
+.rh-title { margin: 19rpx 0 9rpx; font-size: 36rpx; font-weight: 700; }
+.rh-sub { font-size: 17rpx; opacity: 0.7; }
+.rh-btn {
+  margin-top: 39rpx; min-height: 78rpx; padding: 0 28rpx; display: inline-flex; gap: 13rpx; align-items: center;
+  border: 0; border-radius: 26rpx; background: #fff; color: #406a5f; font-size: 19rpx; font-weight: 600;
+}
+.rh-btn::after { border: 0; }
+
+.section-heading { margin: 37rpx 4rpx 19rpx; display: flex; justify-content: space-between; align-items: baseline; }
+.sh-title { color: #34564d; font-size: 26rpx; font-weight: 700; }
+.sh-sub { color: #9aa5a1; font-size: 15rpx; }
+
+.resource-list { display: grid; gap: 17rpx; }
+.resource-item {
+  width: 100%; padding: 19rpx; display: flex; gap: 21rpx; align-items: center;
+  border: 1rpx solid rgba(65, 96, 88, 0.07); border-radius: 32rpx; background: #fff; color: #95a19d;
+}
+.resource-art {
+  width: 101rpx; height: 101rpx; display: flex; align-items: center; justify-content: center;
+  border-radius: 28rpx; background: #dfece6; position: relative;
+}
+.resource-art::after {
+  content: ""; width: 39rpx; height: 39rpx; border: 4rpx solid #668d82; border-radius: 50%;
+}
+.art-2 { background: #f2e4d7; }
+.art-2::after { border-radius: 50% 0 50% 0; border-color: #bd8861; }
+.art-3 { background: #e2e5ef; }
+.art-3::after { border-color: #6f7896; border-right-color: transparent; }
+
+.ri-copy { flex: 1; }
+.ri-dur { color: #8ba097; font-size: 13rpx; }
+.ri-title { margin-top: 4rpx; color: #4d625c; font-size: 19rpx; font-weight: 600; }
+.ri-desc { margin-top: 6rpx; color: #9da6a3; font-size: 15rpx; }
+.ri-play { font-size: 26rpx; color: #b3bdb9; }

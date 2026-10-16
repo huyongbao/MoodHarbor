@@ -1,0 +1,51 @@
+/* login —— 品牌登录页 */
+.auth-view {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  padding: 60rpx 41rpx 78rpx;
+  box-sizing: border-box;
+  background: linear-gradient(175deg, #e6efea 0 38%, #f7f5ef 65%);
+}
+
+.brand-mark {
+  position: relative; width: 138rpx; height: 138rpx; margin-bottom: 37rpx;
+  border-radius: 47rpx 47rpx 47rpx 15rpx; background: #4b7a6e;
+  box-shadow: 0 30rpx 56rpx rgba(48, 93, 81, 0.2);
+}
+.brand-bubble {
+  position: absolute; width: 56rpx; height: 78rpx; left: 30rpx; top: 26rpx;
+  border: 6rpx solid #fff; border-right: 0; border-radius: 52rpx 0 0 52rpx; transform: rotate(-12deg);
+}
+.brand-leaf {
+  position: absolute; width: 47rpx; height: 22rpx; left: 63rpx; top: 48rpx;
+  border-radius: 50% 0 50% 0; background: #e9bd7e; transform: rotate(-28deg);
+}
+
+.auth-h1 {
+  margin-top: 15rpx; white-space: pre-line;
+  color: var(--text-strong); font-size: 52rpx; line-height: 1.45; font-weight: 700;
+}
+.auth-copy { width: 92%; margin: 32rpx 0 41rpx; color: #748680; font-size: 24rpx; line-height: 1.8; }
+
+.auth-promise { display: flex; gap: 17rpx; }
+.promise-item {
+  flex: 1; padding: 19rpx 15rpx; display: flex; align-items: center; gap: 11rpx;
+  border: 1rpx solid rgba(69, 109, 98, 0.1); border-radius: 24rpx;
+  background: rgba(255, 255, 255, 0.55); color: #628078; font-size: 17rpx;
+}
+
+.auth-actions { margin-top: auto; }
+.wechat-button {
+  width: 100%; min-height: 101rpx; border: 0; border-radius: 32rpx;
+  background: var(--color-wechat); color: #fff;
+  display: flex; justify-content: center; align-items: center; gap: 17rpx;
+  font-weight: 600; font-size: 30rpx;
+  box-shadow: 0 22rpx 45rpx rgba(7, 193, 96, 0.16);
+}
+.wechat-button::after { border: 0; }
+.wechat-bubble {
+  width: 50rpx; height: 39rpx; border-radius: 50%; background: #fff; color: var(--color-wechat);
+  font-size: 30rpx; line-height: 34rpx; font-weight: 700; text-align: center;
+}
+.auth-agreement { margin: 26rpx 0 0; color: #a1aaa7; font-size: 15rpx; text-align: center; }

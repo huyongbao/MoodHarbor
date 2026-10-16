@@ -1,0 +1,40 @@
+<view class="setup-view safe-top">
+  <view class="setup-progress">
+    <view class="bar active"></view>
+    <view class="bar"></view>
+    <view class="progress-num">1 / 2</view>
+  </view>
+
+  <view class="eyebrow">选择你的陪伴者</view>
+  <view class="setup-h1">想让谁听你说？</view>
+  <view class="setup-intro">凭第一感觉选就好，以后也能随时更换。</view>
+
+  <view class="companion-options">
+    <view
+      wx:for="{{companions}}"
+      wx:key="id"
+      class="option {{selectedId === item.id ? 'selected' : ''}}"
+      data-id="{{item.id}}"
+      bindtap="onSelect"
+    >
+      <view class="portrait-wrap {{item.className}}">
+        <image class="portrait-img" src="{{item.avatarUrl}}" mode="aspectFill" lazy-load />
+      </view>
+      <view class="option-copy">
+        <view class="option-name">
+          {{item.name}}
+          <view class="option-trait">{{item.trait}}</view>
+        </view>
+        <view class="option-quote">“{{item.quote || '慢慢说，我一直在听'}}”</view>
+      </view>
+      <view class="radio-mark"><view class="radio-dot"></view></view>
+    </view>
+  </view>
+
+  <view class="sticky-actions">
+    <van-button custom-class="btn-primary" bindtap="onConfirm">
+      就选 {{selected.name}}
+      <van-icon name="arrow" size="14px" custom-style="opacity:.6" />
+    </van-button>
+  </view>
+</view>

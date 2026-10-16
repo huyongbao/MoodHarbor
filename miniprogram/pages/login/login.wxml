@@ -1,0 +1,22 @@
+<view class="auth-view safe-top">
+  <view class="brand-mark">
+    <view class="brand-bubble"></view>
+    <view class="brand-leaf"></view>
+  </view>
+  <view class="eyebrow">情绪树洞</view>
+  <view class="auth-h1">先歇一会儿，\n这里可以放心说</view>
+  <view class="auth-copy">登录后，你的专属疏导师会记住你的偏好。所有对话都经过加密保护。</view>
+
+  <view class="auth-promise">
+    <view class="promise-item"><van-icon name="shield-o" size="14px" /> 不公开身份</view>
+    <view class="promise-item"><van-icon name="delete" size="14px" /> 记录随时清除</view>
+  </view>
+
+  <view class="auth-actions">
+    <van-button custom-class="wechat-button" open-type="getUserInfo" bindtap="onWechatLogin">
+      <view class="wechat-bubble">··</view>
+      微信一键登录
+    </van-button>
+    <view class="auth-agreement">登录即表示同意《用户协议》和《隐私政策》</view>
+  </view>
+</view>

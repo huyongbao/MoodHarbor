@@ -1,0 +1,36 @@
+# ==== 系统 ====
+.DS_Store
+*.swp
+
+# ==== WorkBuddy 工作数据（不入库）====
+.workbuddy/
+
+# ==== 依赖（体积大，各端自行安装）====
+miniprogram/node_modules/
+admin/node_modules/
+backend/__pycache__/
+**/__pycache__/
+*.pyc
+
+# ==== 数据库与备份 ====
+backend/moodharbor.db
+backend/moodharbor.db-journal
+moodharbor.db
+moodharbor.db.bak
+*.db.bak
+
+# ==== 上传文件（运行时产物）====
+backend/uploads/
+
+# ==== 环境与密钥 ====
+.env
+.env.local
+*.pem
+*.key
+
+# ==== 构建产物 ====
+admin/dist/
+miniprogram/miniprogram_npm/
+
+# ==== 临时文件 ====
+test_cases.json

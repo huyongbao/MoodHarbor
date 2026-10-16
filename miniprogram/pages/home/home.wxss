@@ -1,0 +1,83 @@
+/* home —— 首页仪表盘 */
+@import "../companion-select/companion-select.wxss";
+
+.dashboard { padding: 26rpx 37rpx 78rpx; min-height: 100vh; box-sizing: border-box; }
+
+.dashboard-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 26rpx; }
+
+.home-avatar {
+  width: 78rpx; height: 78rpx; border-radius: 50%; background: transparent;
+  border: 4rpx solid #fff; overflow: hidden; position: relative;
+  box-shadow: 0 9rpx 22rpx rgba(53, 84, 76, 0.12);
+}
+.home-avatar .portrait-img { width: 100%; height: 100%; }
+
+/* 倾诉主卡：深绿渐变大卡 */
+.continue-card {
+  position: relative; width: 100%; min-height: 391rpx; padding: 43rpx 34rpx; overflow: hidden;
+  border-radius: 48rpx; background: linear-gradient(145deg, #416f63, #698f83); color: #fff;
+  box-shadow: var(--shadow-hero);
+}
+.continue-card::after {
+  content: ""; position: absolute; width: 316rpx; height: 316rpx; right: -47rpx; top: -74rpx;
+  border: 1rpx solid rgba(255, 255, 255, 0.12); border-radius: 50%;
+}
+.continue-copy { position: relative; z-index: 3; width: 70%; }
+.live-pill {
+  display: inline-flex; align-items: center; gap: 9rpx; padding: 9rpx 15rpx;
+  border-radius: 19rpx; background: rgba(255, 255, 255, 0.13); font-size: 17rpx;
+}
+.live-dot { width: 9rpx; height: 9rpx; border-radius: 50%; background: #a9e0b2; }
+.continue-title { margin: 37rpx 0 13rpx; font-size: 37rpx; line-height: 1.45; font-weight: 700; }
+.continue-sub { color: var(--text-on-dark-sub); font-size: 19rpx; }
+.start-pill { margin-top: 34rpx; display: inline-flex; align-items: center; gap: 13rpx; font-size: 21rpx; font-weight: 600; }
+
+.home-companion { position: absolute; z-index: 2; right: -7rpx; bottom: -19rpx; }
+.portrait-img-lg { width: 209rpx; height: 227rpx; border-radius: 69rpx; box-shadow: 0 22rpx 37rpx rgba(26, 57, 49, 0.15); }
+
+/* 停车提示 */
+.shift-note {
+  margin-top: 21rpx; padding: 22rpx 24rpx; display: flex; gap: 19rpx; align-items: center;
+  border-radius: 30rpx; background: #f1eadf;
+}
+.shift-icon { width: 67rpx; height: 67rpx; position: relative; border-radius: 21rpx; background: #fff8ef; }
+.shift-i { position: absolute; width: 34rpx; height: 19rpx; left: 17rpx; top: 17rpx; border: 4rpx solid #c18d5e; border-radius: 19rpx 19rpx 4rpx 4rpx; }
+.shift-b { position: absolute; width: 41rpx; height: 4rpx; left: 13rpx; bottom: 17rpx; background: #c18d5e; }
+.shift-strong { color: #6e5848; font-size: 19rpx; font-weight: 600; }
+.shift-sub { margin-top: 6rpx; color: #a08e7e; font-size: 15rpx; }
+
+/* 分区标题 */
+.section-heading { margin: 37rpx 4rpx 19rpx; display: flex; justify-content: space-between; align-items: baseline; }
+.sh-title { color: #34564d; font-size: 26rpx; font-weight: 700; }
+.sh-sub { color: #9aa5a1; font-size: 15rpx; }
+
+/* 快速帮助宫格 */
+.quick-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 19rpx; }
+.quick-item {
+  min-height: 223rpx; padding: 26rpx; display: flex; flex-direction: column; align-items: flex-start;
+  border: 1rpx solid rgba(64, 96, 88, 0.07); border-radius: 37rpx; background: #fff; color: #455f58;
+}
+.quick-icon {
+  width: 73rpx; height: 73rpx; margin-bottom: 22rpx; display: flex; align-items: center; justify-content: center;
+  border-radius: 24rpx; color: #547d72; background: #e4efe9; font-size: 32rpx;
+}
+.quick-icon.breathe {
+  width: 34rpx; height: 34rpx; margin: 19rpx; border: 4rpx solid currentColor; border-radius: 50%;
+  box-shadow: 0 0 0 9rpx rgba(82, 125, 113, 0.1);
+}
+.quick-icon.memory { background: #f3e7d9; color: #b47f54; }
+.quick-strong { font-size: 21rpx; font-weight: 600; }
+.quick-sub { margin-top: 7rpx; color: #9aa4a1; font-size: 15rpx; }
+
+/* 援助热线条 */
+.help-strip {
+  width: 100%; margin-top: 19rpx; padding: 22rpx; display: flex; align-items: center; gap: 19rpx;
+  border: 1rpx solid rgba(169, 103, 77, 0.08); border-radius: 34rpx; background: #fff6f1; color: #b0a09a;
+}
+.help-icon {
+  width: 71rpx; height: 71rpx; display: flex; align-items: center; justify-content: center;
+  border-radius: 22rpx; background: #f3dfd5; color: #a96654; font-size: 30rpx;
+}
+.help-copy { flex: 1; }
+.help-strong { color: #795f56; font-size: 19rpx; font-weight: 600; }
+.help-sub { margin-top: 6rpx; font-size: 15rpx; }

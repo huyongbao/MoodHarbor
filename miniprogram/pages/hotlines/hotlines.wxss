@@ -1,0 +1,56 @@
+/* hotlines —— 心理援助热线 */
+@import "../history-detail/history-detail.wxss";
+@import "../talk/talk.wxss";
+
+.header-spacer { width: 68rpx; }
+
+.hotline-intro {
+  padding: 32rpx; display: flex; gap: 24rpx; align-items: center;
+  border-radius: 37rpx; background: var(--color-panel); color: #50796e;
+}
+.hi-phone-icon {
+  width: 95rpx; height: 95rpx; display: flex; align-items: center; justify-content: center;
+  border-radius: 50%; background: #fff; font-size: 41rpx;
+}
+.hii-title { color: #385c52; font-size: 28rpx; font-weight: 700; }
+.hii-sub { margin-top: 7rpx; color: #7e918b; font-size: 17rpx; }
+
+.hotline-list { display: grid; gap: 17rpx; margin-top: 26rpx; }
+.hotline-card {
+  padding: 26rpx; display: flex; align-items: center;
+  border: 1rpx solid rgba(64, 94, 86, 0.07); border-radius: 34rpx; background: #fff;
+}
+.hc-main { flex: 1; display: flex; flex-direction: column; }
+.hc-tag { color: #ba8463; font-size: 15rpx; }
+.hc-name { margin-top: 7rpx; color: #4e625c; font-size: 19rpx; font-weight: 600; }
+.hc-num { margin-top: 6rpx; color: #365e53; font-size: 28rpx; font-weight: 700; }
+.hc-dial {
+  min-height: 71rpx; padding: 0 22rpx; display: flex; gap: 9rpx; align-items: center; justify-content: center;
+  border: 0; border-radius: 24rpx; background: #e1ede7; color: #467568; font-size: 17rpx;
+}
+.hc-dial::after { border: 0; }
+
+.emergency-link {
+  width: 100%; margin-top: 34rpx; min-height: 86rpx; line-height: 86rpx;
+  border: 1rpx solid rgba(173, 89, 69, 0.15); border-radius: 28rpx;
+  background: var(--color-danger-soft); color: #a95e50; font-size: 17rpx; padding: 0;
+}
+.emergency-link::after { border: 0; }
+
+.hotline-note { margin: 24rpx 15rpx 0; color: #9b9f9d; font-size: 15rpx; line-height: 1.7; text-align: center; }
+
+/* 紧急弹窗 */
+.emergency-modal {
+  width: 100%; padding: 47rpx 37rpx 37rpx; border-radius: 50rpx;
+  background: #fffaf6; text-align: center; box-shadow: 0 37rpx 93rpx rgba(28, 50, 44, 0.3);
+}
+.em-title { color: #684b43; font-size: 32rpx; font-weight: 700; }
+.em-copy { margin: 17rpx 0 32rpx; color: #8e7a74; font-size: 19rpx; line-height: 1.7; }
+.emergency-call {
+  width: 100%; min-height: 88rpx; margin-top: 15rpx; display: flex; justify-content: center; align-items: center; gap: 11rpx;
+  border: 0; border-radius: 26rpx; background: var(--color-danger-warm); color: #fff; font-size: 21rpx; font-weight: 600;
+}
+.emergency-call::after { border: 0; }
+.emergency-call.secondary { background: #f2e3de; color: #90564a; }
+.modal-close-btn { margin-top: 24rpx; border: 0; background: transparent; color: #8e9c97; font-size: 17rpx; line-height: 1.5; }
+.modal-close-btn::after { border: 0; }

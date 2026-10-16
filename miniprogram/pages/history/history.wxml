@@ -1,0 +1,45 @@
+<view class="sub-view safe-top">
+  <view class="sub-header">
+    <view>
+      <view class="eyebrow">只属于你的角落</view>
+      <view class="page-title">倾诉记录</view>
+    </view>
+    <van-button custom-class="round-action" bindtap="onClearAll" aria-label="清空倾诉记录"><van-icon name="delete" size="17px" /></van-button>
+  </view>
+
+  <!-- 情绪天气（demo 亮点，PRD P2 候选）-->
+  <view class="insight-card">
+    <view class="insight-label">本周情绪天气</view>
+    <view class="insight-main">
+      <view class="weather-mark">
+        <view class="w w1"></view>
+        <view class="w w2"></view>
+        <view class="w w3"></view>
+      </view>
+      <view class="insight-copy">
+        <view class="insight-strong">多云转晴</view>
+        <view class="insight-sub">你已经连续 3 天照顾自己的感受</view>
+      </view>
+    </view>
+  </view>
+
+  <view class="date-label">最近</view>
+  <view
+    wx:for="{{list}}"
+    wx:key="id"
+    class="history-item"
+    data-id="{{item.id}}"
+    bindtap="onItem"
+  >
+    <view class="history-dot"></view>
+    <view class="history-copy">
+      <view class="hi-title">{{item.title}}</view>
+      <view class="hi-desc">{{item.desc}}</view>
+    </view>
+    <view class="history-time">{{item.time}} ›</view>
+  </view>
+
+  <view wx:if="{{list.length === 0}}" class="empty-tip">还没有倾诉记录，有话想说时随时回来</view>
+
+  <view class="privacy-note"><van-icon name="shield-o" size="13px" /> 记录已加密保存，你可以随时清除</view>
+</view>

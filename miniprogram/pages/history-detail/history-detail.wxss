@@ -1,0 +1,15 @@
+/* history-detail —— 倾诉详情 */
+@import "../talk/talk.wxss";
+
+.detail-view { min-height: 100vh; padding: 13rpx 41rpx 78rpx; box-sizing: border-box; }
+.page-header {
+  height: 88rpx; display: flex; justify-content: space-between; align-items: center; margin-bottom: 32rpx;
+}
+.ph-title { color: #35554d; font-size: 26rpx; font-weight: 600; }
+.text-action { border: 0; background: transparent; color: #8d6a5d; font-size: 19rpx; padding: 0; line-height: 1.5; }
+.text-action::after { border: 0; }
+
+.detail-meta { display: flex; justify-content: center; color: #9aa5a1; font-size: 15rpx; }
+
+.detail-chat { padding: 19rpx 0; }
+.message { margin: 19rpx 0; }

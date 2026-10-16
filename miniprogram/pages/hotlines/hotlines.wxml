@@ -1,0 +1,41 @@
+<view class="detail-view safe-top">
+  <view class="page-header">
+    <van-button custom-class="btn-round" bindtap="onBack" aria-label="返回"><van-icon name="arrow-left" size="20px" /></van-button>
+    <text class="ph-title">心理援助</text>
+    <view class="header-spacer"></view>
+  </view>
+
+  <view class="hotline-intro">
+    <view class="hi-phone-icon"><van-icon name="phone" size="26px" /></view>
+    <view class="hi-intro-copy">
+      <view class="hii-title">你不需要独自撑着</view>
+      <view class="hii-sub">以下热线由专业人员接听，可匿名倾诉。</view>
+    </view>
+  </view>
+
+  <view class="hotline-list">
+    <view class="hotline-card" wx:for="{{hotlines}}" wx:key="id">
+      <view class="hc-main">
+        <view class="hc-tag">{{index === 0 ? '优先推荐' : item.description}}</view>
+        <view class="hc-name">{{item.name}}</view>
+        <view class="hc-num">{{item.phone}}</view>
+      </view>
+      <van-button custom-class="hc-dial" bindtap="onCall" data-phone="{item.phone}"><van-icon name="phone" size="14px" /> 拨打</van-button>
+    </view>
+  </view>
+
+  <van-button custom-class="emergency-link" bindtap="onEmergency">我有伤害自己的想法，需要立即帮助</van-button>
+  <view class="hotline-note">若正处于危险中，请立即拨打 110 或 120，或前往最近的医院急诊。</view>
+</view>
+
+<!-- 紧急求助弹窗 -->
+<view wx:if="{{showEmergency}}" class="modal-backdrop">
+  <view class="emergency-modal">
+    <view class="modal-shield">🛡</view>
+    <view class="em-title">先确保你现在是安全的</view>
+    <view class="em-copy">请放下可能伤害自己的物品，走到有人的地方。专业人员会陪你度过这一刻。</view>
+    <van-button custom-class="emergency-call" bindtap="onCall" data-phone="12356">立即拨打 12356</van-button>
+    <van-button custom-class="emergency-call secondary" bindtap="onCall" data-phone="110">紧急危险：拨打 110 / 120</van-button>
+    <van-button custom-class="modal-close-btn" bindtap="onCloseEmergency">我现在安全，返回热线列表</van-button>
+  </view>
+</view>

@@ -1,0 +1,31 @@
+/* profile-setup —— 完善信息（初始化第二步）*/
+@import "../companion-select/companion-select.wxss";
+
+/* 年龄步进器 */
+.age-input {
+  height: 101rpx; display: flex; align-items: center;
+  border: 1rpx solid var(--line-input); border-radius: 30rpx; background: #fff; overflow: hidden;
+}
+.age-btn {
+  width: 101rpx; height: 100%; border: 0; background: #f0f4f2; color: #54786e;
+  font-size: 41rpx; line-height: 1; padding: 0;
+}
+.age-btn::after { border: 0; }
+.age-value { flex: 1; min-width: 0; text-align: right; color: #315349; font-size: 39rpx; font-weight: 700; }
+.age-unit { margin: 0 34rpx 0 11rpx; color: #879691; font-size: 21rpx; }
+
+/* 选择宫格 */
+.choice-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 17rpx; }
+.gender-grid { grid-template-columns: repeat(3, 1fr); }
+.choice {
+  min-height: 88rpx; border: 1rpx solid rgba(63, 100, 90, 0.1); border-radius: 26rpx;
+  background: #fff; color: #6d817b; font-size: 21rpx; display: flex; align-items: center; justify-content: center;
+  padding: 0;
+}
+.choice::after { border: 0; }
+.choice.selected { border-color: #5c887b; background: #e7efeb; color: #37665a; font-weight: 600; }
+
+.encrypt-note {
+  margin-top: 19rpx; display: flex; justify-content: center; align-items: center; gap: 9rpx;
+  color: #94a09c; font-size: 15rpx;
+}

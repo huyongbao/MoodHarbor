@@ -1,0 +1,139 @@
+/* guide —— 全屏引导页（复刻 figma_demo onboarding）*/
+.onboarding {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  padding-bottom: 42rpx;
+  box-sizing: border-box;
+}
+
+.skip-button {
+  position: absolute;
+  z-index: 5;
+  right: 41rpx;
+  top: calc(env(safe-area-inset-top) + 20rpx);
+  border: 0;
+  background: transparent;
+  color: #738780;
+  font-size: 24rpx;
+  line-height: 1;
+  padding: 8rpx 0;
+}
+.skip-button::after { border: 0; }
+
+/* 上部插画区 43% */
+.guide-visual {
+  height: 43vh;
+  min-height: 560rpx;
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(165deg, #e2eee8, #f4eee3);
+}
+.guide-theme-1 .guide-visual { background: linear-gradient(155deg, #dfece7, #f5e5d6); }
+.guide-theme-2 .guide-visual { background: linear-gradient(155deg, #e8eee7, #dce9e4); }
+
+.guide-number {
+  position: absolute;
+  left: 47rpx;
+  top: 48rpx;
+  color: rgba(53, 91, 81, 0.14);
+  font-size: 134rpx;
+  font-weight: 700;
+  letter-spacing: -11rpx;
+}
+
+.guide-orbit {
+  position: absolute;
+  border: 1rpx solid rgba(76, 117, 105, 0.15);
+  border-radius: 50%;
+}
+.orbit-one { width: 531rpx; height: 531rpx; left: 108rpx; top: 46rpx; }
+.orbit-two { width: 381rpx; height: 381rpx; left: 182rpx; top: 121rpx; border-style: dashed; }
+
+/* 骑手场景（第一页）*/
+.rider-scene { position: absolute; width: 354rpx; height: 419rpx; left: 50%; bottom: 0; transform: translateX(-50%); }
+.rider-head { position: absolute; z-index: 2; width: 132rpx; height: 139rpx; left: 108rpx; top: 63rpx; border-radius: 42% 45% 48% 48%; background: #dba581; }
+.rider-helmet {
+  position: absolute; z-index: 3; width: 171rpx; height: 100rpx; left: 89rpx; top: 30rpx;
+  border-radius: 102rpx 102rpx 18rpx 18rpx; background: #e6b84f;
+  box-shadow: inset 0 -15rpx rgba(128, 89, 30, 0.08);
+}
+.rider-helmet::after {
+  content: ""; position: absolute; width: 108rpx; height: 15rpx; right: -7rpx; bottom: -4rpx;
+  border-radius: 15rpx; background: #c8983e;
+}
+.rider-body {
+  position: absolute; width: 270rpx; height: 249rpx; left: 39rpx; bottom: -52rpx;
+  border-radius: 112rpx 112rpx 15rpx 15rpx; background: linear-gradient(145deg, #4f8475, #315f54);
+}
+.rider-body::before {
+  content: ""; position: absolute; width: 30rpx; height: 140rpx; left: 119rpx; top: 11rpx;
+  background: rgba(232, 184, 79, 0.9);
+}
+.rider-box {
+  position: absolute; z-index: 4; right: -102rpx; top: 190rpx; width: 175rpx; padding: 22rpx;
+  border-radius: 24rpx 24rpx 24rpx 6rpx; background: rgba(255, 255, 255, 0.92); color: #4a665e;
+  box-shadow: 0 18rpx 56rpx rgba(42, 72, 64, 0.12); font-size: 21rpx; line-height: 1.5;
+  white-space: pre-line;
+}
+
+/* 陪伴者头像（第二页，复用组件样式）*/
+.portrait { position: relative; overflow: hidden; border-radius: 45rpx; background: #dce9e3; }
+.portrait-large { width: 209rpx; height: 227rpx; position: absolute; left: 50%; top: 112rpx; transform: translateX(-50%) scale(1.7); }
+.portrait-hair { position: absolute; z-index: 2; width: 86rpx; height: 99rpx; left: 61rpx; top: 22rpx; border-radius: 50% 50% 42% 42%; background: #2e4b43; }
+.portrait-face { position: absolute; z-index: 3; width: 66rpx; height: 77rpx; left: 71rpx; top: 50rpx; border-radius: 50%; background: #ecc0a1; }
+.portrait-body { position: absolute; z-index: 1; width: 119rpx; height: 67rpx; left: 45rpx; bottom: -17rpx; border-radius: 50% 50% 0 0; background: #d98867; }
+
+.sound-rings { position: absolute; left: 50%; top: 59%; display: flex; gap: 9rpx; transform: translateX(-50%); align-items: center; }
+.sound-rings .ring { width: 7rpx; height: 37rpx; border-radius: 7rpx; background: #5a897b; }
+.sound-rings .r2 { height: 71rpx; }
+.sound-rings .r3 { height: 50rpx; }
+
+/* 安全视觉（第三页）*/
+.safe-visual {
+  position: absolute; left: 50%; top: 52%; width: 280rpx; height: 280rpx;
+  transform: translate(-50%, -50%);
+  display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 22rpx;
+  border-radius: 50%; background: rgba(255, 255, 255, 0.75); color: #4f7c70;
+  box-shadow: 0 37rpx 93rpx rgba(54, 90, 80, 0.12);
+}
+.safe-icon {
+  width: 116rpx; height: 128rpx; position: relative;
+}
+.safe-icon::before {
+  content: ""; position: absolute; inset: 0;
+  border: 6rpx solid currentColor; border-radius: 58rpx 58rpx 60rpx 60rpx;
+  clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%);
+  border-top-left-radius: 58rpx; border-top-right-radius: 58rpx;
+}
+.safe-icon::after {
+  content: ""; position: absolute; left: 32rpx; top: 50rpx; width: 40rpx; height: 22rpx;
+  border-left: 6rpx solid currentColor; border-bottom: 6rpx solid currentColor;
+  transform: rotate(-45deg);
+}
+.safe-text { font-size: 24rpx; font-weight: 600; }
+.safe-line { position: absolute; width: 430rpx; height: 430rpx; left: 50%; top: 52%; transform: translate(-50%, -50%); border: 1rpx solid rgba(75, 120, 108, 0.2); border-radius: 50%; }
+
+/* 下部文案区 */
+.guide-content { padding: 52rpx 41rpx 0; }
+.guide-tag { color: #5d867a; font-size: 21rpx; font-weight: 600; letter-spacing: 4rpx; }
+.guide-h1 {
+  margin-top: 17rpx; white-space: pre-line;
+  color: var(--text-strong); font-size: var(--font-display); line-height: 1.38; font-weight: 700; letter-spacing: -1rpx;
+}
+.guide-copy { min-height: 93rpx; margin: 22rpx 0 30rpx; color: #7d8c87; font-size: 24rpx; line-height: 1.8; }
+
+.guide-dots { display: flex; gap: 11rpx; margin-bottom: 35rpx; }
+.guide-dots .dot { width: 11rpx; height: 11rpx; border-radius: 11rpx; background: #cfd8d4; transition: width 0.25s; }
+.guide-dots .dot.active { width: 43rpx; background: var(--color-primary-500); }
+
+/* 按钮箭头 */
+.chevron {
+  width: 16rpx; height: 16rpx;
+  border-top: 4rpx solid currentColor; border-right: 4rpx solid currentColor;
+  transform: rotate(45deg); margin-top: -4rpx;
+}
+
+/* 引导页真实数字人形象 */
+.portrait-figure { position: absolute; width: 209rpx; height: 260rpx; left: 50%; top: 140rpx; transform: translateX(-50%); border-radius: 45rpx; overflow: hidden; box-shadow: 0 16rpx 36rpx rgba(35, 64, 57, 0.18); }
+.portrait-figure-img { width: 100%; height: 100%; }

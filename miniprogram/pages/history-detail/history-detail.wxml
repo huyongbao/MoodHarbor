@@ -1,0 +1,24 @@
+<view class="detail-view safe-top">
+  <view class="page-header">
+    <van-button custom-class="btn-round" bindtap="onBack" aria-label="返回"><van-icon name="arrow-left" size="20px" /></van-button>
+    <text class="ph-title">倾诉详情</text>
+    <van-button custom-class="text-action" bindtap="onDelete">删除</van-button>
+  </view>
+
+  <view class="detail-meta">
+    <text>已为你隐藏敏感信息</text>
+  </view>
+
+  <view class="detail-chat">
+    <view
+      wx:for="{{messages}}"
+      wx:key="index"
+      class="message {{item.role === 'user' ? 'user-message' : 'ai-message'}}"
+    >
+      <block wx:if="{{item.role === 'ai'}}"><view class="ai-name">{{companionName}}</view></block>
+      {{item.content}}
+    </view>
+  </view>
+
+  <view class="privacy-note"><van-icon name="shield-o" size="13px" /> 此记录已加密保存</view>
+</view>

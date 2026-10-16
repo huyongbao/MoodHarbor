@@ -1,0 +1,7 @@
+/* companion-edit —— 更换陪伴者 */
+@import "../companion-select/companion-select.wxss";
+@import "../history-detail/history-detail.wxss";
+
+.setup-intro.standalone { margin: 0 0 26rpx; }
+.companion-options.compact { padding-bottom: 15rpx; }
+.page-bottom { margin-top: 22rpx; }
