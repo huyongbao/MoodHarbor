@@ -338,15 +338,20 @@ def self_help_list(db: Session = Depends(get_db)):
 @router.get("/digital-human/view")
 def digital_human_view(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     """返回 H5 宿主页完整 URL（含密钥参数）+ 是否已配置。
+    按用户当前选择的陪伴者下发对应数字人密钥：
+      dh_01=小满（女） dh_02=知远（男）
     小程序 web-view 直接加载该 URL 即可渲染 3D 数字人。"""
-    from config import DH_APP_ID, DH_APP_SECRET, LLM_MODEL  # noqa
-    from config import DH_APP_ID, DH_APP_SECRET
-    if not DH_APP_ID or not DH_APP_SECRET:
+    from config import DH_CREDENTIALS
+    from urllib.parse import quote
+
+    dh_id = user.digital_human_id or "dh_01"
+    cred = DH_CREDENTIALS.get(dh_id) or DH_CREDENTIALS.get("dh_01")
+    if not cred or not cred[0] or not cred[1]:
         return ok({"configured": False, "url": ""})
     base = os.getenv("PUBLIC_BASE_URL", "http://192.168.110.220:8000")
-    from urllib.parse import quote
-    url = f"{base}/digital-human/index.html?appid={DH_APP_ID}&secret={quote(DH_APP_SECRET)}"
-    return ok({"configured": True, "url": url})
+    name = "xiaoman" if dh_id == "dh_01" else "zhiyuan"
+    url = f"{base}/digital-human/index.html?appid={cred[0]}&secret={quote(cred[1])}&name={name}"
+    return ok({"configured": True, "url": url, "digitalHumanId": dh_id})
 
 
 # ---------- 预警上报：POST /risk-alerts ----------

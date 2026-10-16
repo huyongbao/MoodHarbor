@@ -37,9 +37,19 @@ LLM_BASE_URL = os.getenv("LLM_BASE_URL", "http://121.43.195.133:28479/v1")
 LLM_API_KEY = os.getenv("LLM_API_KEY", "")  # 从环境变量读取，不进代码库
 LLM_MODEL = os.getenv("LLM_MODEL", "glm-5.3")
 
-# ---- 魔珐星云 3D 数字人（web-view H5 宿主页）----
-DH_APP_ID = os.getenv("DH_APP_ID", "")      # 魔珐星云驱动应用 appId
-DH_APP_SECRET = os.getenv("DH_APP_SECRET", "")  # 驱动应用 appSecret
+# ---- 魔珐星云 3D 数字人（web-view H5 宿主页，双数字人）----
+# 小满（女，dh_01）
+DH_APP_ID_FEMALE = os.getenv("DH_APP_ID_FEMALE", "")
+DH_APP_SECRET_FEMALE = os.getenv("DH_APP_SECRET_FEMALE", "")
+# 知远（男，dh_02）
+DH_APP_ID_MALE = os.getenv("DH_APP_ID_MALE", "")
+DH_APP_SECRET_MALE = os.getenv("DH_APP_SECRET_MALE", "")
+
+# 数字人 ID → 星云应用密钥映射（dh_01=小满女 / dh_02=知远男）
+DH_CREDENTIALS = {
+    "dh_01": (DH_APP_ID_FEMALE, DH_APP_SECRET_FEMALE),
+    "dh_02": (DH_APP_ID_MALE, DH_APP_SECRET_MALE),
+}
 
 # ---- 风险分级（PRD 9.2）----
 RISK_CONFIDENCE_THRESHOLD = 0.8  # 模型置信度 ≥ 0.8 直接采信

@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
-<title>小满 · 3D 数字人</title>
+<title>3D 数字人</title>
 <style>
   html, body { margin: 0; padding: 0; height: 100%; background: linear-gradient(165deg, #e2eee8, #f4eee3); overflow: hidden; }
   #sdk { width: 100vw; height: 100vh; }
@@ -34,6 +34,8 @@
   var qs = new URLSearchParams(location.search);
   var appId = qs.get("appid") || "";
   var appSecret = qs.get("secret") || "";
+  var dhName = qs.get("name") === "zhiyuan" ? "知远" : "小满";
+  document.title = dhName + " · 3D 数字人";
   var hintEl = document.getElementById("hint");
 
   function setHint(text, isError) {
@@ -42,11 +44,11 @@
   }
 
   if (!appId || !appSecret) {
-    setHint("未配置数字人应用密钥（DH_APP_ID / DH_APP_SECRET）\n请在 backend/.env 中填写后重启", true);
+    setHint("未配置数字人应用密钥（DH_APP_ID_FEMALE / DH_APP_ID_MALE）\n请在 backend/.env 中填写后重启", true);
     return;
   }
 
-  setHint("数字人正在唤醒中…（首次加载约 10-30 秒）");
+  setHint(dhName + "正在唤醒中…（首次加载约 10-30 秒）");
 
   var sdk = new XmovAvatar({
     containerId: "#sdk",
@@ -54,13 +56,13 @@
     appSecret: appSecret,
     gatewayServer: "https://nebula-agent.xingyun3d.com/user/v1/ttsa/session",
     hardwareAcceleration: "prefer-hardware",
-    enableLogger: false,
+    enableLogger: true,
     onStateChange: function (state) {
-      // 状态回传小程序
+      // 状态回传小程序（SDK 状态机：init → rendering → pausing/paused → resumed → stopped）
       try {
         wx.miniProgram.postMessage({ data: { type: "dh_state", state: String(state) } });
       } catch (e) {}
-      if (String(state) === "idle" || String(state) === "interactive_idle") {
+      if (String(state) === "rendering" || String(state) === "resumed") {
         setHint("");
         try {
           wx.miniProgram.postMessage({ data: { type: "dh_ready" } });
@@ -108,9 +110,19 @@
   setInterval(checkHash, 300);
 
   // ---- 初始化连接 ----
-  sdk.initModel
-    ? sdk.initModel("normal")
-    : (sdk.init && sdk.init(function (p) { if (p >= 100) setHint(""); }));
+  // SDK v2.4.1：init({ onDownloadProgress, initModel }) 建立会话
+  sdk.init({
+    initModel: "normal",
+    onDownloadProgress: function (p) {
+      setHint(dhName + "资源加载 " + p + "%");
+    },
+  }).then(function () {
+    // init 完成：资源已就绪（TTSA 连接已建立），清提示
+    setHint("");
+    try { wx.miniProgram.postMessage({ data: { type: "dh_ready" } }); } catch (e) {}
+  }).catch(function (err) {
+    setHint("数字人初始化失败：" + (err && (err.message || err)), true);
+  });
 })();
 </script>
 </body>
