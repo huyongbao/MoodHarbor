@@ -41,10 +41,19 @@
           </template>
         </el-table-column>
         <el-table-column prop="description" label="说明" min-width="220" show-overflow-tooltip />
-        <el-table-column label="资源" width="90">
+        <el-table-column label="资源" width="150">
           <template #default="{ row }">
-            <el-link v-if="row.url" :href="row.url" target="_blank" type="primary">查看</el-link>
-            <span v-else class="muted">—</span>
+            <el-button
+              v-if="row.url"
+              :type="playingId === row.id ? 'warning' : 'primary'"
+              :icon="playingId === row.id ? VideoPause : VideoPlay"
+              link
+              @click="togglePlay(row)"
+            >
+              {{ playingId === row.id ? '暂停' : '试听' }}
+            </el-button>
+            <el-link v-if="row.url" :href="row.url" target="_blank" type="primary" style="margin-left: 8px">查看</el-link>
+            <span v-if="!row.url" class="muted">—</span>
           </template>
         </el-table-column>
         <el-table-column label="状态" width="90">
@@ -104,8 +113,8 @@
 </template>
 
 <script setup>
-import { onMounted, reactive, ref } from 'vue'
-import { Plus } from '@element-plus/icons-vue'
+import { onBeforeUnmount, onMounted, reactive, ref } from 'vue'
+import { Plus, VideoPlay, VideoPause } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { getResources, createResource, updateResource, deleteResource } from '@/api/admin'
 
@@ -137,6 +146,40 @@ function openDialog(row) {
   }
   dialog.value = true
 }
+
+// —— 试听播放：共享单个 Audio 实例，同一时刻只播放一条 ——
+let audio = null
+const playingId = ref(null)
+
+function togglePlay(row) {
+  if (!audio) {
+    audio = new Audio()
+    audio.addEventListener('ended', () => {
+      playingId.value = null
+    })
+    audio.addEventListener('error', () => {
+      if (playingId.value) ElMessage.error('音频加载失败，请检查资源地址')
+      playingId.value = null
+    })
+  }
+  if (playingId.value === row.id) {
+    audio.pause()
+    playingId.value = null
+    return
+  }
+  audio.pause()
+  audio.src = row.url
+  audio.play().catch(() => {})
+  playingId.value = row.id
+}
+
+onBeforeUnmount(() => {
+  if (audio) {
+    audio.pause()
+    audio = null
+  }
+  playingId.value = null
+})
 
 async function save() {
   if (!form.title) {

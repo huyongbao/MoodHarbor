@@ -276,9 +276,9 @@ export const presetCases = [
 
 /** 心理健康自助资源库：低危/中危自助干预素材（suitableLevels：2=中危 3=低危） */
 export const selfHelp = [
-  { id: 'sh_01', title: '三分钟呼吸放松', type: '放松音频', suitableLevels: [2, 3], description: '跟随引导完成一次腹式呼吸练习，快速平复紧绷情绪', url: 'https://cdn.moodharbor.cn/audio/breathing-3min.mp3', status: 'active', createdAt: '2026-09-20 10:00:00' },
-  { id: 'sh_02', title: '雨天白噪音', type: '轻音乐', suitableLevels: [3], description: '舒缓雨声白噪音，适合午休或睡前循环播放', url: 'https://cdn.moodharbor.cn/audio/rain-noise.mp3', status: 'active', createdAt: '2026-09-20 10:05:00' },
-  { id: 'sh_03', title: '身体扫描冥想', type: '冥想引导', suitableLevels: [2, 3], description: '从头到脚逐步放松身体各部位，缓解久坐驾驶疲劳', url: 'https://cdn.moodharbor.cn/audio/body-scan.mp3', status: 'active', createdAt: '2026-09-22 14:30:00' },
+  { id: 'sh_01', title: '三分钟呼吸放松', type: '放松音频', suitableLevels: [2, 3], description: '舒缓钢琴轻音乐，适合配合腹式呼吸练习平复紧绷情绪', url: '/audio/breathing-music.mp3', status: 'active', createdAt: '2026-09-20 10:00:00' },
+  { id: 'sh_02', title: '雨天白噪音', type: '轻音乐', suitableLevels: [3], description: '舒缓雨声白噪音，适合午休或睡前循环播放', url: '/audio/rain-noise.mp3', status: 'active', createdAt: '2026-09-20 10:05:00' },
+  { id: 'sh_03', title: '身体扫描冥想', type: '轻音乐', suitableLevels: [2, 3], description: '舒缓轻音乐，适合配合身体扫描练习从头到脚逐步放松，缓解久坐驾驶疲劳', url: '/audio/body-scan.mp3', status: 'active', createdAt: '2026-09-22 14:30:00' },
   { id: 'sh_04', title: '收工后快走 20 分钟', type: '运动建议', suitableLevels: [3], description: '低强度有氧建议：收车后快走或拉伸 20 分钟，释放压力', url: '', status: 'active', createdAt: '2026-10-08 09:00:00' },
   { id: 'sh_05', title: '周末近郊散心路线', type: '旅行建议', suitableLevels: [3], description: '南京周边低消费散心路线：玄武湖环湖、紫金山绿道等', url: '', status: 'active', createdAt: '2026-10-08 09:10:00' }
 ]
