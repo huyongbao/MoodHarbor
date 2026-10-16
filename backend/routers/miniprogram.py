@@ -161,6 +161,10 @@ async def chat_completions(body: dict, user: User = Depends(get_current_user), d
                 if not text:  # ASR 转写填充 text（V6.2：含 audio 时由后端自动填充）
                     text = asr_out["text"]
                 audio_emotion = audio_service.analyze_emotion(audio_path)
+                logger.info("【语音分析】ASR=%r | 情感=%s | distress=%.2f",
+                            asr_out["text"][:30],
+                            audio_emotion["labels"][:3] if audio_emotion["labels"] else [],
+                            audio_emotion["distress_score"])
         except Exception as e:
             logger.warning(f"语音处理失败: {e}")
     if "image" in input_types and image_url:
@@ -168,6 +172,10 @@ async def chat_completions(body: dict, user: User = Depends(get_current_user), d
             image_path = os.path.join(UPLOAD_DIR, image_url.replace("/uploads/", ""))
             if os.path.exists(image_path):
                 face_emotion = face_service.analyze_face(image_path)
+                logger.info("【表情分析】检出人脸=%s | 情绪=%s | distress=%.2f",
+                            face_emotion["faces_detected"],
+                            face_emotion["labels"][:3] if face_emotion["labels"] else [],
+                            face_emotion["distress_score"])
         except Exception as e:
             logger.warning(f"表情处理失败: {e}")
 

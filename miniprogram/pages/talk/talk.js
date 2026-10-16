@@ -332,12 +332,20 @@ Page({
         }
         this.setData({ faceActive: true, faceStatus: "运行中 · 取帧尝试" });
         this.cameraCtx = wx.createCameraContext();
+        this._faceFrameOk = false; // 取帧成功标记（超时判定用）
+        // 取帧超时哨兵：12s 内无一帧成功 → 判定当前环境 camera 受限
+        this._faceWatchdog = setTimeout(() => {
+          if (!this._faceFrameOk && this.data.faceActive) {
+            this.setData({ faceStatus: "受限：取帧无响应（模拟器/预览包无摄像头），语音与文字不受影响" });
+          }
+        }, 12000);
         // 每 3 秒拍一帧做表情分析
         this.faceTimer = setInterval(() => {
           if (!this.data.faceActive) return;
           this.cameraCtx && this.cameraCtx.takePhoto({
             quality: "low",
             success: (res) => {
+              this._faceFrameOk = true;
               this.setData({ faceStatus: "运行中 · 取帧成功" });
               // 推流模式下送后端分析；非推流仅更新状态
               if (this.data.debugStreaming) {
@@ -365,5 +373,6 @@ Page({
   onUnload() {
     if (this.data.debugStreaming) this.stopDebugStream();
     if (this.faceTimer) clearInterval(this.faceTimer);
+    if (this._faceWatchdog) clearTimeout(this._faceWatchdog);
   },
 });
