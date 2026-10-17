@@ -1,14 +1,15 @@
 <view class="talk-page">
   <!-- 背景：3D 数字人 H5（数字人/字幕/转写区/热线卡全在 H5 内） -->
   <web-view wx:if="{{dhUrl}}" src="{{dhUrl}}" bindload="onWebviewLoad" bindmessage="onWebviewMessage" class="dh-webview">
-    <!-- 前景原生层：按住说话按钮（cover-view 覆盖 web-view，真机生效） -->
+    <!-- 前景原生层：按住说话（button 原生组件在 cover-view 内，touch 事件可靠） -->
     <cover-view class="cv-bottom">
-      <cover-view
+      <button
         class="hold-talk {{recording ? 'recording' : ''}} {{processing ? 'processing' : ''}}"
         bindtouchstart="onHoldStart"
         bindtouchend="onHoldEnd"
         bindtouchcancel="onHoldEnd"
-      >{{recording ? "松开结束" : (processing ? "小满正在倾听…" : "按住开始说话")}}</cover-view>
+        hover-class="none"
+      >{{recording ? "松开结束" : (processing ? "小满正在倾听…" : "按住开始说话")}}</button>
     </cover-view>
   </web-view>
 

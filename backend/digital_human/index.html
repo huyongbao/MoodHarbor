@@ -101,7 +101,7 @@
     z-index: 100;
     background: linear-gradient(180deg, rgba(251, 251, 253, 0), #fbfbfd 24%, #fbfbfd);
     display: flex; flex-direction: column; align-items: center;
-    padding: 26px 24px calc(env(safe-area-inset-bottom, 0px) + 118px);
+    padding: 18px 24px calc(env(safe-area-inset-bottom, 0px) + 20px);
     box-sizing: border-box;
     font-family: -apple-system, "PingFang SC", sans-serif;
     pointer-events: none;
@@ -117,14 +117,12 @@
   }
   .asr-text.empty { color: #b8b4ab; font-size: 14px; font-weight: 400; }
   .asr-hint {
-    margin-top: 6px;
     color: #8a8578; font-size: 11px; letter-spacing: 1px;
   }
   /* 按钮视觉占位：与小程序 cover-view 按钮同位置同样式（真机被覆盖，工具可见） */
   .btn-visual {
-    position: fixed;
-    left: 30px; right: 30px;
-    bottom: calc(env(safe-area-inset-bottom, 0px) + 26px);
+    width: 100%;
+    margin-top: 16px;
     padding: 15px 0;
     border-radius: 999px;
     background: linear-gradient(135deg, #f2994a, #e87d2e);
@@ -132,9 +130,11 @@
     font-size: 16px; font-weight: 700; letter-spacing: 3px;
     text-align: center;
     box-shadow: 0 12px 30px rgba(230, 120, 40, 0.4);
-    z-index: 90;
+    box-sizing: border-box;
   }
   .btn-visual-text { pointer-events: none; }
+  .btn-visual:active { transform: scale(0.97); }
+  .asr-hint { margin-top: 12px; }
 
   /* ============ 状态提示 ============ */
   .hint {
@@ -190,13 +190,13 @@
 
 <!-- 前景：底部白色区（语音转写 + 按钮视觉占位） -->
 <div class="fg-bottom">
-  <div class="asr-text empty" id="asr-text">松开按钮后，你说的话会出现在这里</div>
-  <div class="asr-hint">放心聊，对话加密保护</div>
-  <!-- 按钮视觉占位：真机上被小程序 cover-view 原生按钮精确覆盖（同位置同尺寸），
-       开发者工具里 cover-view 不渲染，此占位保证布局完整可见 -->
+  <div class="asr-text empty" id="asr-text"></div>
+  <!-- 按钮视觉占位（真机被 cover-view 覆盖） -->
   <div class="btn-visual" id="btn-visual">
     <span class="btn-visual-text">按住开始说话</span>
   </div>
+  <!-- 提示放按钮下面（用户要求，参考图1） -->
+  <div class="asr-hint">放心聊，对话加密保护</div>
 </div>
 
 <script src="https://media.xingyun3d.com/xingyun3d/general/litesdk/xmovAvatar@latest.js"></script>
@@ -265,7 +265,7 @@
       asrEl.textContent = text;
       asrEl.classList.remove("empty");
     } else {
-      asrEl.textContent = "松开按钮后，你说的话会出现在这里";
+      asrEl.textContent = "";
       asrEl.classList.add("empty");
     }
   }
@@ -350,6 +350,10 @@
     initDone = true;
     setHint("");
     try { wx.miniProgram.postMessage({ data: { type: "dh_ready" } }); } catch (e) {}
+    // 加载完成：数字人开口说欢迎语（口型动画 + 字幕）
+    var greet = "准备好了就开口，我一直在听。";
+    sdk.speak(greet, true, true);
+    showSubtitle(greet);
   }).catch(function (err) {
     initDone = true;
     setHint("数字人初始化失败：" + (err && (err.message || err)), true);

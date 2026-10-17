@@ -72,18 +72,25 @@ Page({
   // ================= 按住说话（cover-view）=================
   onHoldStart() {
     if (this.data.recording || this.data.processing) return;
+    // 关键：先启动录音（touchstart 回调里避免同步 setData 阻塞 touchend —— 
+    // 微信双线程已知坑：touchstart 中 setData 会导致 touchend 丢失）
+    this._recording = true;
     this._ensureRecorder().start({
       duration: 60000,
       format: "mp3",
       sampleRate: 16000,
       encodeBitRate: 48000,
     });
-    this.setData({ recording: true });
-    wx.vibrateShort({ type: "light" });
+    setTimeout(() => {
+      this.setData({ recording: true });
+      wx.vibrateShort({ type: "light" });
+    }, 0);
   },
 
   onHoldEnd() {
-    if (!this.data.recording) return;
+    // 用实例标记判断（不依赖 setData 后的 data，防阻塞竞态）
+    if (!this._recording) return;
+    this._recording = false;
     this.setData({ recording: false, processing: true });
     this.sendHash("asr=waiting"); // 转写中占位
     this._ensureRecorder().stop();
