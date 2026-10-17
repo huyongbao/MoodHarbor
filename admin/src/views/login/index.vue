@@ -3,7 +3,7 @@
     <el-card class="login-card">
       <div class="brand">
         <div class="brand-logo">🌳</div>
-        <h1 class="brand-title">情绪树洞 · 管理后台</h1>
+        <h1 class="brand-title">歇会儿 · 管理后台</h1>
         <p class="brand-sub">守护每一位新就业形态劳动者的心事</p>
       </div>
       <el-form ref="formRef" :model="form" :rules="rules" size="large" @keyup.enter="submit">

@@ -7,6 +7,8 @@ PRD V6.3 技术选型：
 import time
 import logging
 
+from services.infer_lock import INFER_LOCK, limit_torch_threads, AUDIO_EXECUTOR
+
 logger = logging.getLogger("audio_service")
 
 _asr_model = None
@@ -20,9 +22,13 @@ HIGH_DISTRESS = {"悲伤/sad", "担忧/worried", "焦虑/anxious", "害怕/fearf
 def _get_asr():
     global _asr_model
     if _asr_model is None:
+        limit_torch_threads()
         from funasr import AutoModel
+        # 注意：不要挂 vad_model / punc_model。沙箱对单进程内存有硬限制（约 4GB 会被
+        # SIGKILL），三个模型一起加载峰值 6GB 必被杀。调试段都是 ≤5s 的短音频，
+        # 不需要 VAD 切分；标点缺失仅影响展示。若在沙箱外部署可把两者加回。
         _asr_model = AutoModel(
-            model="paraformer-zh", vad_model="fsmn-vad", punc_model="ct-punc", disable_update=True
+            model="paraformer-zh", disable_update=True, ncpu=2
         )
     return _asr_model
 
@@ -30,6 +36,7 @@ def _get_asr():
 def _get_emo():
     global _emo_model
     if _emo_model is None:
+        limit_torch_threads()
         from funasr import AutoModel
         _emo_model = AutoModel(model="iic/emotion2vec_plus_base", disable_update=True)
     return _emo_model
@@ -38,7 +45,8 @@ def _get_emo():
 def transcribe(audio_path: str) -> dict:
     """语音转文本。返回 {text, latency_s}"""
     t0 = time.time()
-    res = _get_asr().generate(input=audio_path)
+    with INFER_LOCK:  # 串行推理，避免并发抢占 CPU 饿死事件循环
+        res = _get_asr().generate(input=audio_path)
     return {"text": res[0]["text"], "latency_s": round(time.time() - t0, 2)}
 
 
@@ -47,7 +55,8 @@ def analyze_emotion(audio_path: str, top_k: int = 3) -> dict:
     distress_score: 高痛苦情绪（悲伤/担忧/焦虑/害怕）概率之和，供矛盾提升规则使用
     """
     t0 = time.time()
-    res = _get_emo().generate(input=audio_path, granularity="utterance", extract_embedding=False)
+    with INFER_LOCK:
+        res = _get_emo().generate(input=audio_path, granularity="utterance", extract_embedding=False)
     labels = res[0]["labels"]
     scores = [float(s) for s in res[0]["scores"]]
     pairs = sorted(zip(labels, scores), key=lambda x: -x[1])
@@ -69,6 +78,20 @@ def process_audio(audio_path: str) -> dict:
         "distress_score": emo["distress_score"],
         "latency_s": asr["latency_s"] + emo["latency_s"],
     }
+
+
+# ---------- 异步封装：统一在 AUDIO_EXECUTOR 这条专属线程上跑 ----------
+# 不要用 asyncio.to_thread（默认线程池是多线程的），模型跨线程调用会原生崩溃
+async def transcribe_async(audio_path: str) -> dict:
+    import asyncio
+    loop = asyncio.get_running_loop()
+    return await loop.run_in_executor(AUDIO_EXECUTOR, transcribe, audio_path)
+
+
+async def analyze_emotion_async(audio_path: str) -> dict:
+    import asyncio
+    loop = asyncio.get_running_loop()
+    return await loop.run_in_executor(AUDIO_EXECUTOR, analyze_emotion, audio_path)
 
 
 if __name__ == "__main__":

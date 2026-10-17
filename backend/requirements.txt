@@ -1,0 +1,31 @@
+# 情绪树洞后端依赖（Python 3.12）
+# 安装：cd backend && python -m venv .venv && .venv/bin/python -m ensurepip && \
+#        uv pip install --python .venv/bin/python -r requirements.txt
+#
+# 注意：funasr / oss2 在 PyPI 只有源码包，构建时会清理临时目录，
+#       若被批量删除保护拦截，可在命令前加 CODEBUDDY_SAFE_DELETE_BULK_THRESHOLD=100000
+
+# ---- Web 框架 ----
+fastapi==0.143.3
+uvicorn==0.54.0
+pydantic==2.14.1
+python-dotenv==1.2.4
+python-multipart==0.0.32
+pyjwt==2.15.1
+websockets==17.2
+sqlalchemy==2.1.5
+
+# ---- 多模态 AI（本地部署，PRD V6.3）----
+# ASR: paraformer-zh（+ fsmn-vad / ct-punc）；语音情感: emotion2vec_plus_base
+funasr==1.4.16
+modelscope==1.40.2
+# 表情: Py-Feat Detectorv1
+py-feat==2.1.5
+torch==2.14.1
+torchaudio==2.11.0
+torchvision==0.29.1
+numpy==2.5.4
+
+# 模型缓存位置（首次运行自动下载，约 1GB）：
+#   ASR / emotion2vec → ~/.cache/modelscope/models
+#   Py-Feat           → ~/.cache/py-feat

@@ -25,22 +25,69 @@ Page({
   faceTimer: null,
 
   onLoad() {
-    // 倾诉会话
-    api.request("/conversations", { method: "POST" }).then((res) => {
-      this.conversationId = (res.data && res.data.conversationId) || "";
-    }).catch(() => {});
-    // 数字人地址（优先用 home 页预取的全局 URL，省一次请求）
-    if (app.globalData.dhUrl) {
-      this.setData({ configured: true, dhUrl: app.globalData.dhUrl });
-    } else {
-      api.request("/digital-human/view").then((res) => {
-        const d = res.data || {};
-        this.setData({ configured: !!d.configured, dhUrl: d.url || "" });
-        if (d.url) app.globalData.dhUrl = d.url;
-      }).catch(() => this.setData({ configured: false }));
-    }
+    // tab 化常驻：onLoad 只在当天首次进入时执行一次，之后切走/回来都是 onShow
+    // 导航标题对齐图2：显示当前陪伴者名字（小满 / 知远）
+    const companion = app.globalData.companion;
+    const dhId = (companion && companion.id) || wx.getStorageSync("mock_dh_id") || "dh_01";
+    wx.setNavigationBarTitle({ title: (companion && companion.name) || (dhId === "dh_02" ? "知远" : "小满") });
     // 隐藏摄像头表情识别（页面无画面，仅取帧分析）
     this._initHiddenFaceDetect();
+    // 建会话并把 token + conversationId 带进 H5 地址（H5 内录音直连后端）；
+    // 会话的生命周期由 H5 管理：结束/超时后 H5 自己 ensureConversation 开新会话
+    api.request("/conversations", { method: "POST" })
+      .then((res) => { this.conversationId = (res.data && res.data.conversationId) || ""; })
+      .catch(() => {})
+      .then(() => this._initWebview());
+  },
+
+  onShow() {
+    // 自定义 tabBar：倾诉页沉浸式，不高亮任何 tab
+    if (typeof this.getTabBar === "function" && this.getTabBar()) {
+      this.getTabBar().setData({ selected: -1 });
+    }
+    // 摄像头取帧：切走时停了，回来恢复
+    if (!this.faceTimer) this._initHiddenFaceDetect();
+    // 首页带入的情绪/话题 → 走「写入-消费」指令通道下发给 H5 数字人
+    const ctx = app.globalData.talkContext;
+    if (ctx && ctx.at && this._ctxAt !== ctx.at) {
+      this._ctxAt = ctx.at;
+      app.globalData.talkContext = null;
+      if (ctx.topic) {
+        api.request("/mp/ui-directive", {
+          method: "POST",
+          data: { payload: { topic: ctx.topic, at: ctx.at } },
+        }).catch(() => {});
+      }
+    }
+  },
+
+  onHide() {
+    // tab 切走：页面实例保留（web-view/数字人活着），只停掉摄像头取帧（省电）
+    if (this.faceTimer) { clearInterval(this.faceTimer); this.faceTimer = null; }
+  },
+
+  // cover-view 盖不住 web-view，按住说话改由 H5 自己录音并直连后端，
+  // 所以这里把 token / conversationId 透传进 URL；debug=1 用于真机排查
+  // （开发者工具执行 wx.setStorageSync("dh_debug", true) 后再进本页即生效）
+  _initWebview() {
+    const build = (url) => {
+      if (!url) return "";
+      const token = wx.getStorageSync("token") || "";
+      const sep = url.indexOf("?") > -1 ? "&" : "?";
+      let u = url + sep + "token=" + encodeURIComponent(token) +
+        "&cid=" + encodeURIComponent(this.conversationId || "");
+      if (wx.getStorageSync("dh_debug")) u += "&debug=1";
+      return u;
+    };
+    if (app.globalData.dhUrl) {
+      this.setData({ configured: true, dhUrl: build(app.globalData.dhUrl) });
+      return;
+    }
+    api.request("/digital-human/view").then((res) => {
+      const d = res.data || {};
+      if (d.url) app.globalData.dhUrl = d.url;
+      this.setData({ configured: !!d.configured, dhUrl: build(d.url || "") });
+    }).catch(() => this.setData({ configured: false }));
   },
 
   onUnload() {
@@ -49,6 +96,7 @@ Page({
 
   // ================= 隐藏摄像头：表情识别（无画面）=================
   _initHiddenFaceDetect() {
+    if (this.faceTimer) return; // 已在取帧，避免 onShow 重复启动
     wx.getSetting({
       success: (res) => {
         if (res.authSetting["scope.camera"] === false) {
@@ -69,7 +117,9 @@ Page({
     });
   },
 
-  // ================= 按住说话（cover-view）=================
+  // ================= 按住说话（仅"数字人未配置"兜底页使用）=================
+  // 正常流程下 web-view 盖住整页且 cover-view 无法覆盖 web-view，
+  // 语音交互由 H5 内部完成（见 backend/digital_human/index.html）
   onHoldStart() {
     if (this.data.recording || this.data.processing) return;
     // 关键：先启动录音（touchstart 回调里避免同步 setData 阻塞 touchend —— 
@@ -111,9 +161,14 @@ Page({
     return rm;
   },
 
-  // ================= 语音对话链路 =================
+  // ================= 语音对话链路（仅"数字人未配置"兜底页使用）=================
   _sendVoice(tempFilePath) {
-    api.uploadFile(tempFilePath).then((up) => {
+    // 会话懒创建：常驻页的 cid 可能已被 H5 结束/重建，兜底页用到时再补
+    const ensureCid = this.conversationId
+      ? Promise.resolve(this.conversationId)
+      : api.request("/conversations", { method: "POST" })
+          .then((res) => { this.conversationId = (res.data && res.data.conversationId) || ""; return this.conversationId; });
+    ensureCid.then(() => api.uploadFile(tempFilePath)).then((up) => {
       const payload = {
         conversationId: this.conversationId,
         inputTypes: ["audio"],
@@ -143,14 +198,28 @@ Page({
   // AI 回复处理：转写上屏 → 数字人说话+字幕 → 干预路由
   _handleReply(d) {
     this.setData({ processing: false });
-    // 1. 用户转写显示（只保留当前一句）
+    // H5 每 300ms 轮询一次 hash，指令连发时前一条会被覆盖 →
+    // 按"您的那句 → 数字人回复 → 热线卡"顺序错峰下发
+    const seq = (this._replySeq = (this._replySeq || 0) + 1);
+    const later = (fn, ms) => setTimeout(() => {
+      if (seq === this._replySeq) fn(); // 期间又发起新一轮对话，放弃旧回复
+    }, ms);
+
+    // 1. 用户转写显示（统一走 H5 上方字幕卡，说话人显示"您"）
     if (d.asrText) this.sendHash("asr=" + encodeURIComponent(d.asrText));
+
     // 2. 数字人开口 + 字幕
-    if (d.replyText) this.sendHash("speak=" + encodeURIComponent(d.replyText));
+    const speakAt = d.asrText && d.replyText ? 1000 : 0;
+    if (d.replyText) {
+      if (speakAt) later(() => this.sendHash("speak=" + encodeURIComponent(d.replyText)), speakAt);
+      else this.sendHash("speak=" + encodeURIComponent(d.replyText));
+    }
+
     // 3. 干预路由（PRD 8.2 映射）
     const iv = d.intervention || { type: "normal" };
     if (iv.type === "hotline") {
-      this.sendHash("hotline=show");       // 二级：H5 热线处置卡（温和推荐）
+      // 二级：H5 热线处置卡（温和推荐），排在回复之后，避免抢掉字幕指令
+      later(() => this.sendHash("hotline=show"), speakAt + 800);
     } else if (iv.type === "emergency") {
       this._showEmergencyModal();          // 一级：原生强制弹窗（安全红线）
     }

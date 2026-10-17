@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>风险判定链改造实施方案 · 歇会儿</title>
+<style>
+  :root{
+    --bg:#f7f6f3; --card:#fff; --ink:#2b2a27; --ink2:#5c5a54; --ink3:#8a877f;
+    --line:#e4e1da; --ok:#3d7a63; --okbg:#eef6f1; --accent:#c96a3f;
+    --red:#b4493a; --redbg:#fbeeeb; --orange:#b07b2e; --orangebg:#fdf5e8;
+    --yellow:#8a7a2e; --yellowbg:#faf6e4; --blue:#3a5f8a; --bluebg:#eff4fa;
+    --soft:#f1ede5;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Noto Sans SC",sans-serif;
+    line-height:1.7;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:1080px;margin:0 auto;padding:52px 26px 90px}
+  header{border-bottom:2px solid var(--ink);padding-bottom:20px;margin-bottom:36px}
+  h1{font-size:27px;margin:0 0 8px;font-weight:800}
+  .sub{color:var(--ink2);font-size:13.5px}
+  h2{font-size:19px;margin:48px 0 16px;padding-left:12px;border-left:4px solid var(--accent);font-weight:700}
+  h3{font-size:15px;margin:26px 0 10px;font-weight:700}
+  p{margin:10px 0;font-size:14.3px;color:var(--ink2)}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:20px 24px;margin:16px 0}
+  .note{border-left:3px solid var(--ok);background:var(--okbg);padding:12px 16px;border-radius:0 9px 9px 0;font-size:13.3px;color:#2f5f4b;margin:12px 0}
+  .warn{border-left:3px solid var(--red);background:var(--redbg);padding:12px 16px;border-radius:0 9px 9px 0;font-size:13.3px;color:#7d3b2f;margin:12px 0}
+  code{font-family:ui-monospace,Menlo,monospace;font-size:12px;background:var(--soft);padding:2px 5px;border-radius:4px;color:#8a4a2a}
+  .mono{font-family:ui-monospace,Menlo,monospace;font-size:12.3px}
+
+  /* 判定链流程 */
+  .chain{display:flex;flex-direction:column;gap:0;margin:20px 0}
+  .cnode{
+    background:var(--card);border:1px solid var(--line);border-radius:11px;
+    padding:12px 18px;display:flex;align-items:flex-start;gap:12px;
+  }
+  .cnode .n{
+    flex:none;width:26px;height:26px;border-radius:8px;display:flex;align-items:center;justify-content:center;
+    font-size:12px;font-weight:800;background:var(--soft);color:var(--ink2);margin-top:2px;
+  }
+  .cnode.key .n{background:var(--accent);color:#fff}
+  .cnode.guard .n{background:var(--red);color:#fff}
+  .cnode.llm .n{background:var(--blue);color:#fff}
+  .cnode .t{font-size:13.6px;font-weight:700}
+  .cnode .d{font-size:12.5px;color:var(--ink2);line-height:1.6;margin-top:2px}
+  .cnode .d code{font-size:11.5px}
+  .carrow{text-align:center;color:var(--ink3);font-size:15px;line-height:1.4;margin:2px 0}
+
+  /* 表格 */
+  table{width:100%;border-collapse:collapse;margin:14px 0;font-size:13px}
+  th{text-align:left;padding:9px 12px;background:var(--soft);border-bottom:2px solid var(--line);font-size:12.3px;font-weight:700}
+  td{padding:9px 12px;border-bottom:1px solid var(--line);color:var(--ink2);vertical-align:top}
+  tr:last-child td{border-bottom:none}
+  .lv{display:inline-block;padding:2px 9px;border-radius:999px;font-size:11.5px;font-weight:700}
+  .lv1{background:var(--redbg);color:var(--red)} .lv2{background:var(--orangebg);color:var(--orange)}
+  .lv3{background:var(--yellowbg);color:var(--yellow)} .lv4{background:var(--bluebg);color:var(--blue)}
+
+  /* 分阶段 */
+  .phase{background:var(--card);border:1px solid var(--line);border-radius:12px;margin:14px 0;overflow:hidden}
+  .phase .hd{background:#faf8f4;font-weight:700;font-size:12.5px;color:var(--ink2);letter-spacing:.5px;padding:9px 18px;border-bottom:1px solid var(--line)}
+  .phase .row{display:grid;grid-template-columns:26px 1fr 150px 64px;gap:10px;padding:11px 18px;border-bottom:1px solid var(--line);align-items:center;font-size:13.2px}
+  .phase .row:last-child{border-bottom:none}
+  .phase .row .c{color:var(--ink2)} .phase .row .c b{color:var(--ink)}
+  .phase .row .f{color:var(--ink3);font-size:11.5px;font-family:ui-monospace,Menlo,monospace}
+  .phase .row .h{text-align:right;font-family:ui-monospace,Menlo,monospace;font-size:12px;color:var(--accent);font-weight:700}
+
+  .codeblock{background:#fbf9f5;border:1px solid var(--line);border-radius:10px;padding:14px 18px;margin:12px 0;font-family:ui-monospace,Menlo,monospace;font-size:12.2px;color:#7a4a2c;line-height:1.7;overflow-x:auto;white-space:pre}
+  .codeblock .cm{color:#9a958a}
+  ul{margin:8px 0;padding-left:20px;font-size:14px;color:var(--ink2)}
+  li{margin:5px 0}
+  .foot{margin-top:56px;padding-top:18px;border-top:1px solid var(--line);font-size:12px;color:var(--ink3)}
+  @media(max-width:760px){
+    .phase .row{grid-template-columns:24px 1fr}
+    .phase .row .f,.phase .row .h{grid-column:2;text-align:left}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <h1>风险判定链改造实施方案</h1>
+  <div class="sub">已确认架构：大模型语义判定 + 一级关键词代码一票否决 · 依据《新就业心理关键词和援助热线》 · 2026-10-17</div>
+</header>
+
+<h2>一、判定链：改造后的完整流程</h2>
+
+<div class="chain">
+  <div class="cnode">
+    <div class="n">1</div>
+    <div><div class="t">用户语音 / 文本输入</div><div class="d">H5 录音 → 16k WAV → 上传 → FunASR 转写（演示主链路为语音）</div></div>
+  </div>
+  <div class="carrow">↓</div>
+  <div class="cnode guard">
+    <div class="n">2</div>
+    <div><div class="t">关键词规则引擎（新增，代码执行）</div>
+    <div class="d">加载 <code>risk_keywords.json</code> 四级词库，文本归一化后匹配。<br>
+    命中一级词 → <code>hit_level=1</code>（一票否决标记）；命中二级词 → <code>floor_level=2</code>；三级词仅记录不强制定级；四级词只做频率统计。</div></div>
+  </div>
+  <div class="carrow">↓</div>
+  <div class="cnode llm">
+    <div class="n">3</div>
+    <div><div class="t">DeepSeek 大模型判定（prompt 注入词库上下文）</div>
+    <div class="d">输出扩展为 <code>{ replyText, riskLevel, confidence, reason, matchedKeyword, semanticEquivalent }</code>。<br>
+    <code>semanticEquivalent</code> = 是否与一级词语义相同（含谐音 / 拆字 / 比喻 / 场景化表达），由模型识别。</div></div>
+  </div>
+  <div class="carrow">↓</div>
+  <div class="cnode guard">
+    <div class="n">4</div>
+    <div><div class="t">等级融合（代码强制）</div>
+    <div class="d"><code>hit_level==1 或 semanticEquivalent → 强制 1 级</code>（无视模型结论）；<br>
+    否则 <code>floor_level==2 → min(模型等级, 2)</code>；再叠加已有的矛盾提升（表情/语音高痛苦）与趋势提升（近 3 轮 ≤3）。</div></div>
+  </div>
+  <div class="carrow">↓</div>
+  <div class="cnode key">
+    <div class="n">5</div>
+    <div><div class="t">处置动作（代码按等级强制执行，不依赖模型自觉）</div>
+    <div class="d">话术要求 + 热线选择 + 工单生成，全部按《新就业心理关键词和援助热线》分等级映射（见第四节）。</div></div>
+  </div>
+  <div class="carrow">↓</div>
+  <div class="cnode">
+    <div class="n">6</div>
+    <div><div class="t">落库 + 异步记忆总结</div>
+    <div class="d">消息落库后，后台任务调用 LLM 抽取本轮值得记的 1 条（fact / emotion / risk），写入 <code>memories</code>（新增 <code>kind</code> / <code>importance</code> 字段），不阻塞对话返回。</div></div>
+  </div>
+</div>
+
+<h2>二、词库落库：risk_keywords.json</h2>
+
+<p>赛题文档的四类关键词整理为结构化配置，随代码分发（黑客松阶段零依赖，不进数据库）：</p>
+
+<div class="codeblock">backend/config/risk_keywords.json
+{
+  "version": "2026-10-17",
+  "levels": {
+    "1": [   <span class="cm">// 一级：代码一票否决 + 进 prompt</span>
+      { "category": "直接自杀意念",     "words": ["想死","不想活了","自杀","寻死","去死","不想活","活不下去","死了算了","结束这一切","一了百了"] },
+      { "category": "自杀计划与方式",   "words": ["跳楼","跳桥","跳河","割腕","割脉","上吊","吃安眠药","烧炭","怎么死"] },
+      { "category": "告别与遗言",       "words": ["遗书","遗言","最后一条消息","永别了","再见了","谢谢你们照顾我"] },
+      { "category": "自我否定与绝望",   "words": ["活着没意思","活着就是拖累","我不配活着","没有人会在乎我死","消失算了"] },
+      { "category": "极端表述",         "words": ["一起死","杀了自己","解脱了","再也不见了"] }
+    ],
+    "2": [   <span class="cm">// 二级：floor_level=2 + 进 prompt</span>
+      { "category": "绝望感",       "words": ["没希望了","看不到出路","没有意义","撑不下去了","熬不过去","一切都完了"] },
+      { "category": "强烈痛苦",     "words": ["崩溃了","受不了了","快要疯了","生不如死","太痛苦了"] },
+      { "category": "自我价值否定", "words": ["我是废物","活着就是累赘","什么都做不好","没有用","不值得"] },
+      { "category": "睡眠饮食紊乱", "words": ["整夜睡不着","已经好几天没睡了","吃不下饭","完全没胃口"] },
+      { "category": "社会隔绝",     "words": ["没有一个人理解我","不想跟任何人说话","把自己关起来","消失一段时间"] },
+      { "category": "物质滥用倾向", "words": ["靠喝酒才能睡","不吃药睡不着","想用什么东西麻痹自己"] },
+      { "category": "暗示性表达",   "words": ["如果我出了什么事","以后你们不用管我了"] }
+    ],
+    "3": [   <span class="cm">// 三级：只进 prompt 做类别提示，不参与强制定级</span>
+      { "category": "焦虑与担忧", "hint": "压力大/焦虑/担心/害怕/紧张" },
+      { "category": "抑郁情绪",   "hint": "不开心/低落/提不起精神" },
+      { "category": "愤怒与委屈", "hint": "太委屈/不公平/气死了/被欺负" },
+      { "category": "孤独感",     "hint": "没人说话/太孤单/想找人聊聊" },
+      { "category": "职业倦怠",   "hint": "不想跑了/干不下去了/想换工作" },
+      { "category": "现实压力",   "hint": "被罚款/差评多/收入低/交不起房租" }
+    ]
+  }
+}</div>
+
+<p>四级词（烦 / 累 / 无语 / 倒霉…）<b>不进词库也不进 prompt</b>——它们就是日常聊天，模型自由回应即是四级，强行标注反而引发锚定误判。四级只保留一个功能：<b>24 小时内命中频率统计</b>，同一用户显著上升时在管理端提示关注（对应文档"长期监测"要求）。</p>
+
+<div class="note">
+<b>骑手场景化表达怎么办？</b>文档每级都列了 5 条场景话术（如"这个月再被扣钱我就去死"）。这些<b>不进代码规则</b>（子串匹配命中率低、且"送完这单就不干了"这种不含标准词），而是<b>全部写进 prompt 的"场景化理解"示例区</b>，让模型学会这类表达模式——这正是"语义相同"判断的主战场。
+</div>
+
+<h2>三、大模型 Prompt 与输出改造</h2>
+
+<h3>3.1 SYSTEM_PROMPT 新增三个区块</h3>
+<ul>
+  <li><b>词库区</b>：一级 + 二级逐条列出（按类别分组），三级只列类别与示例。末尾加一句："注意识别谐音、拼音、拆字、比喻、场景化隐喻等变形表达。"</li>
+  <li><b>语义等价判断区</b>：要求模型对每轮输出 <code>semanticEquivalent</code>（是否与一级词语义相同）和 <code>matchedKeyword</code>（命中或语义对应的词），作为留痕依据。</li>
+  <li><b>回复风格区</b>：普通聊天（四级）放开约束——不再强制"3 句以内"，允许自然对话；一/二/三级仍按文档话术要求（共情、不追问细节、不说教、先安抚后转介）。</li>
+</ul>
+
+<h3>3.2 generate_reply 输出扩展</h3>
+<div class="codeblock">{
+  "replyText": "…",
+  "riskLevel": 1,
+  "confidence": 0.96,
+  "reason": "…",
+  "matchedKeyword": "遗书",          <span class="cm">// 新增：命中词 / 语义对应词，无则 null</span>
+  "semanticEquivalent": false        <span class="cm">// 新增：是否与一级词语义相同</span>
+}</div>
+<p><code>matchedKeyword</code> 写入 <code>RiskEvaluation.reason</code> 留痕——评委问"为什么判一级"，答案不是"模型说的"，而是"命中'遗书'（告别与遗言类）+ 模型确认语义等价"。可解释、可审计。</p>
+
+<h3>3.3 融合逻辑（miniprogram.py）</h3>
+<div class="codeblock"><span class="cm"># 第2步之后插入：</span>
+kw = match_keywords(text)                     <span class="cm"># 代码规则，先行</span>
+result = await generate_reply(text, context_summary, keywords_ctx)
+
+final_level = result["riskLevel"]
+if kw["hit_level"] == 1 or result.get("semanticEquivalent"):
+    final_level = 1                           <span class="cm"># 一票否决</span>
+elif kw["floor_level"] == 2:
+    final_level = min(final_level, 2)         <span class="cm"># 保底二级</span>
+<span class="cm"># 之后接已有的矛盾提升 / 趋势提升（不变）</span></div>
+
+<h2>四、分等级处置映射（严格对照文档）</h2>
+
+<table>
+  <tr><th style="width:86px">等级</th><th style="width:190px">热线选择</th><th>回复话术要求</th><th style="width:170px">系统动作</th></tr>
+  <tr>
+    <td><span class="lv lv1">一级 红</span></td>
+    <td><b>12356</b>（24h）+ 提示"如有危险请拨 <b>110 / 120</b>"</td>
+    <td>立即表达关切与共情；<b>不追问细节、不评判、不说教</b>；直接推送热线</td>
+    <td>一级工单 + 人工跟进机制；H5 全屏遮罩热线卡（12356 做成可点按钮）</td>
+  </tr>
+  <tr>
+    <td><span class="lv lv2">二级 橙</span></td>
+    <td><b>12356</b> 或 <b>025-96889910</b>（宁师傅）</td>
+    <td>共情回应 + 情绪安抚，<b>不急于给建议</b>，先承接情绪；温和引入专业资源</td>
+    <td>二级工单；持续关注走向，恶化自动升级一级（已有）</td>
+  </tr>
+  <tr>
+    <td><span class="lv lv3">三级 黄</span></td>
+    <td>宁师傅 / 驿站活动（自然节点推荐，不强推）</td>
+    <td>共情 + <b>情绪正常化</b>（"遇到这种情况有这种感受完全正常"）+ 具体可操作建议（短暂休息、呼吸调节）</td>
+    <td>不建工单；评估留痕（已有 RiskEvaluation）；自助资源推送（已有 selfHelp）</td>
+  </tr>
+  <tr>
+    <td><span class="lv lv4">四级 蓝</span></td>
+    <td>无</td>
+    <td>正常对话回应，模型自由发挥</td>
+    <td>无危机处理；24h 内四级频率显著上升 → 管理端提示关注</td>
+  </tr>
+</table>
+
+<div class="warn">
+<b>现状与文档的三处差距</b>：① <code>build_intervention</code> 现在取 <code>hotlines[0]</code>，没有按等级选热线——要改；② 一级缺"110/120"提示；③ H5 热线卡上 12356 是死文本不可点。三处都在本次 P0 修复。
+</div>
+
+<h2>五、四个遗留问题的落地方案</h2>
+
+<h3>5.1 打招呼带记忆（你已确认：不作限制，按事实提）</h3>
+<ul>
+  <li>新增 <code>GET /api/v1/greeting</code>：读本人最近 10 条记忆 → 优先取 <code>kind=fact</code> 条目 → DeepSeek 生成一句自然问候（带 2s 超时，失败回退现有固定文案）。</li>
+  <li>H5 <code>fireGreet()</code> 改异步：SDK 在线后先请求问候语，请求未返回前不打招呼；与 5s 兜底定时器加互斥锁防重复。</li>
+  <li><b>措辞软化（建议而非限制）</b>：prompt 要求提及往事时用概括性关怀（"上次你提到家里的事，现在好些了吗"），不逐字引用原话——这不是限制你"不提"，而是让问候听起来自然，评委观感更好。是否采纳由你定。</li>
+</ul>
+
+<h3>5.2 每轮结束记忆总结（你已确认）</h3>
+<ul>
+  <li><code>memories</code> 表加 <code>kind</code>（fact/emotion/risk）+ <code>importance</code>（high/mid/low）字段（SQLite ALTER TABLE，启动时迁移）。</li>
+  <li>对话返回后 <code>asyncio.create_task</code> 后台抽取：本轮 user+ai 内容 → LLM 判断"有没有值得长期记住的事"→ 有则写 1 条（无则跳过），替换现在"每轮无脑写摘要"的逻辑。空内容 / 纯语气词不写。</li>
+  <li>抽取失败静默跳过（不影响主对话），打日志。</li>
+</ul>
+
+<h3>5.3 高危引导拨号（你已确认：按文档分等级）</h3>
+<p>即第四节映射表，落到 <code>build_intervention</code> + H5 热线卡两处：热线按等级选号，12356 变成可点按钮，一级卡片追加 110/120 文案。</p>
+
+<h3>5.4 演示用语音</h3>
+<ul>
+  <li>链路本身已通（H5 录音 → FunASR），但库里有 3 条 <code>[语音/表情]</code> 空转写记录——<b>演示前必须真机彩排语音</b>，确认 asrText 有值。</li>
+  <li>排查方向：上传音频的采样率/编码是否符合 FunASR 预期；H5 录音时长过短被 VAD 切掉。</li>
+  <li>兜底：演示机提前授权摄像头/麦克风，避免现场弹权限框。</li>
+</ul>
+
+<h2>六、分阶段实施计划</h2>
+
+<div class="phase">
+  <div class="hd">P0 · 安全底线（不做不能演示）—— 约 6.5h</div>
+  <div class="row"><div class="c">01</div><div class="c"><b>词库文件 + 规则引擎</b>：risk_keywords.json、match_keywords()、归一化匹配</div><div class="f">config/risk_keywords.json</div><div class="h">1.5h</div></div>
+  <div class="row"><div class="c">02</div><div class="c"><b>Prompt 改造</b>：词库区 + 语义等价区 + matchedKeyword/semanticEquivalent 输出</div><div class="f">llm_provider.py</div><div class="h">1h</div></div>
+  <div class="row"><div class="c">03</div><div class="c"><b>等级融合</b>：一票否决 + floor_level 逻辑接入 chat_completions</div><div class="f">miniprogram.py</div><div class="h">0.5h</div></div>
+  <div class="row"><div class="c">04</div><div class="c"><b>处置映射</b>：build_intervention 按等级选热线 + 110/120 提示</div><div class="f">llm_provider.py</div><div class="h">1h</div></div>
+  <div class="row"><div class="c">05</div><div class="c"><b>H5 热线卡</b>：12356 可点、一级卡追加 110/120 文案</div><div class="f">digital_human/index.html</div><div class="h">1h</div></div>
+  <div class="row"><div class="c">06</div><div class="c"><b>多轮上下文</b>：generate_reply 加 history（本会话最近 6 条）</div><div class="f">llm_provider.py + miniprogram.py</div><div class="h">1h</div></div>
+  <div class="row"><div class="c">07</div><div class="c"><b>5 条标准用例回归</b>（文档场景化表达 + 标准词各 2~3 条）</div><div class="f">—</div><div class="h">0.5h</div></div>
+</div>
+
+<div class="phase">
+  <div class="hd">P1 · 演示亮点 —— 约 6.5h</div>
+  <div class="row"><div class="c">08</div><div class="c"><b>记忆表扩展</b>：kind / importance 字段 + 启动迁移</div><div class="f">memory_service.py</div><div class="h">1h</div></div>
+  <div class="row"><div class="c">09</div><div class="c"><b>每轮异步总结</b>：LLM 抽取值得记内容，替换无脑写入</div><div class="f">miniprogram.py</div><div class="h">2h</div></div>
+  <div class="row"><div class="c">10</div><div class="c"><b>打招呼接口</b>：GET /greeting（读记忆 → 生成问候 → 超时回退）</div><div class="f">miniprogram.py</div><div class="h">2h</div></div>
+  <div class="row"><div class="c">11</div><div class="c"><b>H5 异步打招呼</b>：fireGreet 改造 + 防重复锁</div><div class="f">digital_human/index.html</div><div class="h">1h</div></div>
+  <div class="row"><div class="c">12</div><div class="c"><b>人设注入</b>：DigitalHuman.prompt 接入 generate_reply</div><div class="f">llm_provider.py</div><div class="h">0.5h</div></div>
+</div>
+
+<div class="phase">
+  <div class="hd">P2 · 观感与兜底 —— 约 1.5h</div>
+  <div class="row"><div class="c">13</div><div class="c"><b>LLM 中间态字幕</b>："正在听你说… → 正在想…" 两段提示</div><div class="f">index.html</div><div class="h">0.5h</div></div>
+  <div class="row"><div class="c">14</div><div class="c"><b>四级频率监测</b>：24h 计数超阈值 → 管理端提示（对应文档四级要求）</div><div class="f">admin.py</div><div class="h">1h</div></div>
+</div>
+
+<p><b>合计约 14.5h</b>，两人并行一天半可全部完成。P0 完成即可支撑演示主线（正常聊天 + 高危处置），P1 补上"记忆打招呼"这个最大亮点。</p>
+
+<h2>七、演示脚本建议（直接用文档素材）</h2>
+
+<table>
+  <tr><th style="width:70px">演示环节</th><th>操作 / 话术</th><th style="width:230px">预期效果</th></tr>
+  <tr><td>开场</td><td>进入倾诉页，数字人打招呼："上次你说母亲住院了，今天她好点了吗？"（预置记忆）</td><td>展示"记忆驱动的个性化问候"</td></tr>
+  <tr><td>正常聊天</td><td>语音聊今天跑单情况："今天跑了三十单，还行"（四级）</td><td>模型自然回应，无危机处理</td></tr>
+  <tr><td>三级</td><td>"今天又被罚了 200，跑一天白干了，太委屈了"</td><td>共情 + 正常化 + 推自助资源，不弹热线</td></tr>
+  <tr><td>二级</td><td>"被投诉被罚款被骂，活着图什么，我撑不住了"</td><td>温和引入 12356 / 宁师傅热线卡</td></tr>
+  <tr><td>一级</td><td>"这个月再被扣钱我就去死，遗书都写好了"</td><td>立即共情 + 强推送 12356（可点）+ 110/120 提示 + 全屏遮罩</td></tr>
+  <tr><td>后台</td><td>切管理后台看预警工单 / 记忆新增</td><td>展示处置留痕与闭环</td></tr>
+</table>
+
+<div class="note">
+一级用例特意选了<b>场景化表达</b>（"这个月再被扣钱我就去死"）而非标准词——这句话代码规则匹配不上任何标准词，<b>完全靠大模型的语义判断命中</b>，正好现场证明"语义相同也能识别"这个能力点；同时"遗书都写好了"里有标准词兜底，双保险。
+</div>
+
+<div class="foot">
+  配套文档：演示流程差距分析.md（已完成项与遗留项清单）· 流程说明_记忆系统与数字人对话.md（现有全链路）
+</div>
+
+</div>
+</body>
+</html>

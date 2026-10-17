@@ -3,7 +3,7 @@
     <el-aside width="220px" class="aside">
       <div class="logo">
         <span class="logo-icon">🌳</span>
-        <span>情绪树洞 · 管理后台</span>
+        <span>歇会儿 · 管理后台</span>
       </div>
       <el-menu
         router

@@ -34,19 +34,31 @@ function handleUnauthorized() {
   }
 }
 
+// 相同错误 3 秒内只提示一次：调试台推流失败是高频事件，否则会刷屏
+let lastErrMsg = ''
+let lastErrAt = 0
+function toastError(msg) {
+  const now = Date.now()
+  if (msg === lastErrMsg && now - lastErrAt < 3000) return
+  lastErrMsg = msg
+  lastErrAt = now
+  ElMessage.error(msg)
+}
+
 request.interceptors.response.use(
   (res) => {
     const body = res.data || {}
     if (body.code === 0) return body.data
     if (body.code === 401) handleUnauthorized()
-    ElMessage.error(body.message || '请求失败')
+    if (!res.config?.silent) toastError(body.message || '请求失败')
     return Promise.reject(new Error(body.message || `业务错误 code=${body.code}`))
   },
   (err) => {
     const status = err.response?.status
     const body = err.response?.data
     if (status === 401 || body?.code === 401) handleUnauthorized()
-    ElMessage.error(body?.message || err.message || '网络错误')
+    // silent: 后台采集类请求（推流帧/音频段）失败不打扰用户
+    if (!err.config?.silent) toastError(body?.message || err.message || '网络错误')
     return Promise.reject(err)
   }
 )

@@ -4,6 +4,9 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover" />
 <title>3D 数字人</title>
+<!-- 微信小程序 JSSDK：wx.miniProgram.switchTab / navigateBack / postMessage 全依赖它。
+     此前未引入导致 wx 未定义，所有跳转调用被 catch 静默吞掉（结束倾诉后回不了首页） -->
+<script src="https://res.wx.qq.com/open/js/jweixin-1.6.0.js"></script>
 <style>
   html, body { margin: 0; padding: 0; height: 100%; overflow: hidden; }
   /* 图2 背景层：深蓝底 + 数字人身后柔和环境光晕 + 向下长渐变过渡 */
@@ -23,7 +26,7 @@
   /* ============ 前景层（数字人区）============ */
   .fg-top {
     position: fixed; left: 0; top: 0; right: 0; height: 60vh;
-    z-index: 100;
+    z-index: 130;
     padding: calc(env(safe-area-inset-top, 0px) + 14px) 24px 0;
     box-sizing: border-box;
     font-family: -apple-system, "PingFang SC", "Noto Sans SC", sans-serif;
@@ -31,6 +34,39 @@
     display: flex; flex-direction: column;
   }
   .fg-top > * { pointer-events: auto; }
+
+  /* 返回箭头：左上角圆形半透明（tab 化后原生后退没了，H5 自绘） */
+  .btn-back {
+    position: absolute;
+    left: 14px;
+    top: calc(env(safe-area-inset-top, 0px) + 8px);
+    width: 34px;
+    height: 34px;
+    border: none;
+    border-radius: 50%;
+    font-size: 24px;
+    line-height: 30px;
+    color: rgba(255, 255, 255, 0.9);
+    background: rgba(255, 255, 255, 0.14);
+    font-family: inherit;
+    padding: 0;
+  }
+  .btn-back:active { background: rgba(255, 255, 255, 0.25); }
+
+  /* 结束倾诉按钮：右上角半透明胶囊，不与居中的品牌区抢视觉 */
+  .btn-end {
+    position: absolute;
+    right: 16px;
+    top: calc(env(safe-area-inset-top, 0px) + 12px);
+    border: none;
+    border-radius: 999px;
+    padding: 6px 14px;
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.85);
+    background: rgba(255, 255, 255, 0.14);
+    font-family: inherit;
+  }
+  .btn-end:active { background: rgba(255, 255, 255, 0.25); }
 
   /* 顶栏：名字 + 状态（居中） */
   .topbar { display: flex; justify-content: center; }
@@ -65,6 +101,8 @@
   }
   .subtitle-card.show { display: flex; }
   .subtitle-name { font-size: 11px; color: #54786e; font-weight: 700; letter-spacing: 3px; }
+  /* 用户说话时说话人显示"您"，用暖色区分 */
+  .subtitle-card.user .subtitle-name { color: #9a7b57; }
   .subtitle-text { font-size: 15px; color: #33312e; line-height: 1.65; text-align: center; }
   @keyframes card-in { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
 
@@ -86,18 +124,24 @@
   .hotline-lead { font-size: 12.5px; color: #33312e; line-height: 1.7; text-align: center; max-width: 300px; }
   .hotline-org { font-size: 14px; color: #33312e; font-weight: 600; margin-top: 2px; }
   .hotline-phone { font-size: 21px; color: #d85a4a; font-weight: 800; letter-spacing: 1px; }
-  .hotline-actions { display: flex; gap: 10px; margin-top: 6px; width: 100%; }
+  /* 热线按钮区：两个主按钮并排，"知道了"整行（一级高危时隐藏） */
+  .hotline-actions { display: flex; gap: 10px; margin-top: 6px; width: 100%; flex-wrap: wrap; }
   .hotline-call {
-    flex: 1; padding: 11px 0; border: 0; border-radius: 14px;
+    flex: 1 1 40%; padding: 11px 0; border: 0; border-radius: 14px;
     background: linear-gradient(135deg, #f2994a, #e8823a); color: #fff;
     font-size: 13.5px; font-weight: 700; letter-spacing: 1px;
   }
+  .hotline-call.primary { background: linear-gradient(135deg, #e4573f, #d04532); }
   .hotline-close {
-    padding: 11px 18px; border: 0; border-radius: 14px;
+    flex: 1 1 100%; padding: 11px 0; border: 0; border-radius: 14px;
     background: #f0ede6; color: #8a8578; font-size: 13.5px;
   }
 
-  /* ============ 底部区：语音转写 + 按钮（背景由 body 渐变承担过渡）============ */
+  /* 屏蔽 SDK 自带字幕挂件（黑底白字那个，服务端 TTS 下发 subtitle_on 时自动渲染），
+     全站统一用上方 .subtitle-card 字幕卡 */
+  #sdk .avatar-sdk-widget-container { display: none !important; }
+
+  /* ============ 底部区：按钮（背景由 body 渐变承担过渡）============ */
   .fg-bottom {
     position: fixed; left: 0; right: 0; bottom: 0; top: 46vh;
     z-index: 100;
@@ -108,15 +152,6 @@
     pointer-events: none;
   }
 
-  /* 用户语音转写区：只显示当前一句（图2 大字号样式） */
-  .asr-text {
-    min-height: 60px;
-    display: flex; align-items: center; justify-content: center;
-    color: #1f1d1a; font-size: 21px; line-height: 1.55;
-    text-align: center; width: 100%;
-    font-weight: 600;
-  }
-  .asr-text.empty { color: #8a8578; font-size: 16px; font-weight: 400; }
   .asr-hint {
     color: #8a8578; font-size: 11px; letter-spacing: 1px;
   }
@@ -132,7 +167,12 @@
     text-align: center;
     box-shadow: 0 12px 30px rgba(230, 120, 40, 0.4);
     box-sizing: border-box;
+    pointer-events: auto;   /* 父级 .fg-bottom 是 none，这里必须显式打开，否则点不到 */
+    -webkit-user-select: none; user-select: none;
+    -webkit-tap-highlight-color: transparent;
   }
+  .btn-visual.recording { background: linear-gradient(135deg, #d85a4a, #c74030); }
+  .btn-visual.busy { opacity: 0.75; }
   .btn-visual-text { pointer-events: none; }
   .btn-visual:active { transform: scale(0.97); }
   .asr-hint { margin-top: 12px; }
@@ -145,21 +185,33 @@
   }
   .hint.error { color: #ffb4a6; }
 
-  /* 调试状态条：版本 + 音频探针结果（真机截图即可确认，不依赖 vConsole） */
+  /* 调试状态条：默认隐藏，URL 加 ?debug=1 才显示（真机排查时截图用） */
   #dbg {
+    display: none;
     position: fixed; left: 8px; top: 8px; z-index: 9999;
     max-width: 90vw; padding: 4px 8px; border-radius: 6px;
     background: rgba(0,0,0,0.55); color: #9fe3a6;
     font: 11px/1.5 Menlo, Consolas, monospace;
     white-space: pre-wrap; word-break: break-all; pointer-events: none;
   }
+  #dbg.on { display: block; }
+
+  /* 一级高危：遮罩挡住"按住说话"，强制先处理热线（PRD 红线，不可随手关闭） */
+  .hotline-mask {
+    position: fixed; left: 0; top: 0; right: 0; bottom: 0;
+    background: rgba(4, 18, 36, 0.55); z-index: 120; display: none;
+  }
+  .hotline-mask.show { display: block; }
+  .hotline-card.emergency .hotline-close { display: none; }
+  .hotline-card.emergency { box-shadow: 0 14px 44px rgba(190, 40, 30, 0.45); }
 </style>
 </head>
 <body>
 <!-- 背景层：3D 数字人（上半屏 68%） -->
 <div id="sdk"></div>
 <div class="hint" id="hint">数字人正在唤醒中…</div>
-<div id="dbg">v3 raw_audio</div>
+<div id="dbg">v4 raw_audio</div>
+<div class="hotline-mask" id="hotline-mask"></div>
 
 <!-- 前景：数字人区（顶栏 + 字幕/热线卡 + 引导） -->
 <div class="fg-top">
@@ -169,7 +221,10 @@
       <div class="brand-name" id="brand-name">小满</div>
       <div class="brand-state"><div class="brand-dot"></div>正在陪你</div>
     </div>
-    
+    <!-- 返回箭头 + 结束倾诉：tab 化后无原生返回，H5 内自绘（JSSDK switchTab 回首页） -->
+    <button class="btn-back" id="btn-back">‹</button>
+    <!-- 结束倾诉：右上角半透明小按钮（常驻倾诉页 tab 化后，用户随时可结束） -->
+    <button class="btn-end" id="btn-end">结束倾诉</button>
   </div>
   <div class="mid">
     <!-- 热线处置卡（hash: hotline=show / hotline=hide） -->
@@ -182,6 +237,7 @@
       <div class="hotline-org">南京市总工会 宁师傅热线</div>
       <div class="hotline-phone">025-96889910</div>
       <div class="hotline-actions">
+        <button class="hotline-call" id="hotline-call-12356">拨打 12356</button>
         <button class="hotline-call" id="hotline-call">联系宁师傅</button>
         <button class="hotline-close" id="hotline-close">知道了</button>
       </div>
@@ -195,9 +251,8 @@
   </div>
 </div>
 
-<!-- 前景：底部白色区（语音转写 + 按钮视觉占位） -->
+<!-- 前景：底部按钮区（语音转写统一走上方字幕卡，这里不再单独显示文字） -->
 <div class="fg-bottom">
-  <div class="asr-text empty" id="asr-text"></div>
   <!-- 按钮视觉占位（真机被 cover-view 覆盖） -->
   <div class="btn-visual" id="btn-visual">
     <span class="btn-visual-text">按住开始说话</span>
@@ -206,6 +261,23 @@
   <div class="asr-hint">放心聊，对话加密保护</div>
 </div>
 
+<!-- 音频上下文追踪：必须在 SDK 脚本之前执行，否则 SDK 内部已缓存原始构造函数 -->
+<script>
+window.__dhCtxList = [];
+(function () {
+  ["AudioContext", "webkitAudioContext"].forEach(function (key) {
+    var Orig = window[key];
+    if (!Orig) return;
+    function Wrapped() {
+      var c = Reflect.construct(Orig, arguments, Orig);
+      window.__dhCtxList.push(c);
+      return c;
+    }
+    Wrapped.prototype = Orig.prototype;
+    window[key] = Wrapped;
+  });
+})();
+</script>
 <script src="https://media.xingyun3d.com/xingyun3d/general/litesdk/xmovAvatar@latest.js"></script>
 <script>
 /**
@@ -240,31 +312,374 @@
 
   // ---- 热线卡 ----
   var hotlineCard = document.getElementById("hotline-card");
+  var hotlineMask = document.getElementById("hotline-mask");
+  var hotlineLead = document.getElementById("hotline-lead");
+  var LEAD_NORMAL = "我能感受到您现在的痛苦，和您聊天的同时，有一个 24 小时的心理支持热线 12356，有专业人员可以陪您聊一聊。";
+  var LEAD_EMERGENCY = "我能感受到您现在的痛苦。请立即拨打 24 小时心理援助热线 12356；如果您现在有危险，请拨打 110 或 120。";
+  // emergency=true：一级高危，遮罩挡住说话按钮、隐藏"知道了"（PRD 红线），文案切换为强转介 + 110/120
+  function showHotlineCard(emergency) {
+    hotlineCard.classList.toggle("emergency", !!emergency);
+    if (hotlineMask) hotlineMask.classList.toggle("show", !!emergency);
+    if (hotlineLead) hotlineLead.textContent = emergency ? LEAD_EMERGENCY : LEAD_NORMAL;
+    hotlineCard.classList.add("show");
+  }
+  document.getElementById("hotline-call-12356").addEventListener("click", function () {
+    try { wx.miniProgram.postMessage({ data: { type: "call_hotline", phone: "12356" } }); } catch (e) {}
+    window.location.href = "tel:12356";
+  });
   document.getElementById("hotline-call").addEventListener("click", function () {
     try { wx.miniProgram.postMessage({ data: { type: "call_hotline", phone: "025-96889910" } }); } catch (e) {}
     window.location.href = "tel:02596889910";
   });
   document.getElementById("hotline-close").addEventListener("click", function () {
     hotlineCard.classList.remove("show");
+    hotlineCard.classList.remove("emergency");
+    if (hotlineMask) hotlineMask.classList.remove("show");
   });
 
-  // ---- H5 按钮占位提示（开发者工具里 cover-view 不渲染，点此按钮提示真机体验）----
-  var btnVisual = document.getElementById("btn-visual");
-  if (btnVisual) {
-    var tipTimer = null;
-    btnVisual.addEventListener("click", function () {
-      var t = document.getElementById("btn-visual-text");
-      var orig = "按住开始说话";
-      t.textContent = "语音对话请在真机体验";
-      clearTimeout(tipTimer);
-      tipTimer = setTimeout(function () { t.textContent = orig; }, 2000);
+  // ================= 按住说话：H5 内录音（关键）=================
+  // 为什么必须在 H5 里做：小程序的 cover-view 只能覆盖 map/video/canvas/camera/
+  // live-player/live-pusher，**不支持覆盖 web-view**，所以原生按钮永远盖不到这层 H5 上。
+  // 链路：getUserMedia → ScriptProcessor 收 PCM → 降采样 16k → WAV
+  //       → POST /api/v1/upload → POST /api/v1/chat/completions → sdk.speak 回复
+  var API_BASE = "/api/v1";
+  var apiToken = qs.get("token") || "";
+  var conversationId = qs.get("cid") || "";
+
+  var btnEl = document.getElementById("btn-visual");
+  var btnTextEl = btnEl ? btnEl.querySelector(".btn-visual-text") : null;
+  var recording = false;
+  var busy = false;          // 上传/等待回复中
+  var audioCtx = null;
+  var mediaStream = null;
+  var processor = null;
+  var sourceNode = null;
+  var pcmChunks = [];
+  var recordStartAt = 0;
+
+  function setBtnText(t) { if (btnTextEl) btnTextEl.textContent = t; }
+
+  function startRecord() {
+    if (recording || busy) return;
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      setHint("当前环境不支持录音，请用手机微信打开", true);
+      return;
+    }
+    recording = true;
+    pcmChunks = [];
+    recordStartAt = Date.now();
+    touchActivity();
+    setBtnText("松开结束");
+    if (btnEl) btnEl.classList.add("recording");
+    setHint("");
+    navigator.mediaDevices.getUserMedia({
+      audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true },
+    }).then(function (stream) {
+      if (!recording) { // 授权弹窗期间用户已松手
+        stream.getTracks().forEach(function (t) { t.stop(); });
+        return;
+      }
+      mediaStream = stream;
+      var AC = window.AudioContext || window.webkitAudioContext;
+      audioCtx = new AC();
+      ctxList.push(audioCtx);
+      if (audioCtx.state === "suspended") audioCtx.resume();
+      sourceNode = audioCtx.createMediaStreamSource(stream);
+      processor = audioCtx.createScriptProcessor(4096, 1, 1);
+      processor.onaudioprocess = function (e) {
+        if (recording) pcmChunks.push(new Float32Array(e.inputBuffer.getChannelData(0)));
+      };
+      sourceNode.connect(processor);
+      processor.connect(audioCtx.destination); // 不接 destination 不回调；输出本身是静音
+      dbg("rec=start sr=" + audioCtx.sampleRate);
+    }).catch(function (err) {
+      recording = false;
+      setBtnText("按住开始说话");
+      setHint("没拿到麦克风权限（" + (err && err.name) + "）", true);
+      dbg("rec=error " + (err && err.name));
     });
   }
 
-  // ---- 字幕 ----
+  function stopRecord() {
+    if (!recording) return;
+    recording = false;
+    var held = Date.now() - recordStartAt;
+    touchActivity();
+    try { processor && processor.disconnect(); } catch (e) {}
+    try { sourceNode && sourceNode.disconnect(); } catch (e) {}
+    try { mediaStream && mediaStream.getTracks().forEach(function (t) { t.stop(); }); } catch (e) {}
+    var sr = audioCtx ? audioCtx.sampleRate : 16000;
+    try { audioCtx && audioCtx.close(); } catch (e) {}
+    processor = null; sourceNode = null; mediaStream = null; audioCtx = null;
+    if (btnEl) btnEl.classList.remove("recording");
+
+    if (held < 400) { setBtnText("按住开始说话"); setHint("按住时间长一点再说"); return; }
+    var wav = encodeWav(pcmChunks, sr, 16000);
+    pcmChunks = [];
+    if (!wav) { setBtnText("按住开始说话"); setHint("没录到声音，再试一次", true); return; }
+    dbg("rec=stop " + (held / 1000).toFixed(1) + "s " + Math.round(wav.size / 1024) + "KB");
+    setBtnText("正在识别…");
+    if (btnEl) { btnEl.classList.remove("recording"); btnEl.classList.add("busy"); }
+    showSubtitle("正在听你说…", "user");
+    uploadAndChat(wav);
+  }
+
+  // 多段 Float32 合并 → 降采样 → 16bit 单声道 WAV（FunASR 直接吃 wav，避免 mp4/webm 兼容问题）
+  function mergeFloat(chunks) {
+    var len = 0, i;
+    for (i = 0; i < chunks.length; i++) len += chunks[i].length;
+    var out = new Float32Array(len), off = 0;
+    for (i = 0; i < chunks.length; i++) { out.set(chunks[i], off); off += chunks[i].length; }
+    return out;
+  }
+
+  function downsample(buf, from, to) {
+    if (to >= from) return buf;
+    var ratio = from / to;
+    var newLen = Math.floor(buf.length / ratio);
+    var out = new Float32Array(newLen);
+    for (var i = 0; i < newLen; i++) {
+      var start = Math.floor(i * ratio);
+      var end = Math.min(Math.floor((i + 1) * ratio), buf.length);
+      var sum = 0, n = 0;
+      for (var j = start; j < end; j++) { sum += buf[j]; n++; }
+      out[i] = n ? sum / n : 0;
+    }
+    return out;
+  }
+
+  function encodeWav(chunks, sr, targetSr) {
+    var data = downsample(mergeFloat(chunks), sr, targetSr || 16000);
+    if (!data.length) return null;
+    var rate = targetSr || 16000;
+    var buffer = new ArrayBuffer(44 + data.length * 2);
+    var view = new DataView(buffer);
+    function writeStr(off, s) {
+      for (var i = 0; i < s.length; i++) view.setUint8(off + i, s.charCodeAt(i));
+    }
+    writeStr(0, "RIFF");
+    view.setUint32(4, 36 + data.length * 2, true);
+    writeStr(8, "WAVE");
+    writeStr(12, "fmt ");
+    view.setUint32(16, 16, true);
+    view.setUint16(20, 1, true);          // PCM
+    view.setUint16(22, 1, true);          // 单声道
+    view.setUint32(24, rate, true);
+    view.setUint32(28, rate * 2, true);
+    view.setUint16(32, 2, true);
+    view.setUint16(34, 16, true);
+    writeStr(36, "data");
+    view.setUint32(40, data.length * 2, true);
+    var off = 44;
+    for (var i = 0; i < data.length; i++, off += 2) {
+      var s = Math.max(-1, Math.min(1, data[i]));
+      view.setInt16(off, s < 0 ? s * 0x8000 : s * 0x7fff, true);
+    }
+    return new Blob([view], { type: "audio/wav" });
+  }
+
+  // 会话兜底：小程序建会话失败时（cid 为空），H5 自己补建一个
+  function ensureConversation() {
+    if (conversationId) return Promise.resolve(conversationId);
+    return fetch(API_BASE + "/conversations", {
+      method: "POST",
+      headers: { Authorization: "Bearer " + apiToken },
+    }).then(function (r) { return r.json(); }).then(function (res) {
+      if (res && res.code === 0) {
+        conversationId = res.data.conversationId;
+        sessionEnded = false;
+        touchActivity();
+      }
+      return conversationId;
+    }).catch(function () { return conversationId; });
+  }
+
+  // 返回首页（tab 化后原生后退没了）：箭头与结束倾诉共用
+  function mpGoHome() {
+    try {
+      if (window.wx && wx.miniProgram && wx.miniProgram.switchTab) {
+        wx.miniProgram.switchTab({ url: "/pages/home/home" });
+        return;
+      }
+      wx.miniProgram.navigateBack();
+    } catch (e) {
+      setHint("返回失败，请点底部「歇会儿」", true);
+    }
+  }
+  document.getElementById("btn-back").addEventListener("click", mpGoHome);
+
+  // 结束倾诉：数字人道别 → 后端生成小结写记忆 → 回首页
+  document.getElementById("btn-end").addEventListener("click", function () {
+    if (sessionEnded || !conversationId) { mpGoHome(); return; }
+    endSession(true);
+    // 收尾语说完（约 6s）再回首页，给数字人道别留时间
+    setTimeout(mpGoHome, 6500);
+  });
+
+  // ================= 常驻倾诉页：会话生命周期 =================
+  // 规则（产品已确认）：用户在场 10 分钟无说话 → 数字人温和收尾并结束；
+  // 用户切走（tab 切换/小程序后台）→ 数字人立即静音，绝不发声；
+  // 结束时 LLM 生成倾诉小结，由后端写入长期记忆（kind=summary）。
+  var sessionEnded = false;          // 当前会话是否已结束
+  var lastActivityAt = Date.now();   // 最近一次用户说话/交互时间
+  var IDLE_MS = 10 * 60 * 1000;      // 10 分钟无说话自动收尾
+  var WRAPUP_TEXT = "今天先聊到这里，辛苦啦。休息一下，随时回来找我。";
+
+  function touchActivity() { lastActivityAt = Date.now(); }
+
+  function sdkMute(hide) {
+    // SDK 内部 <audio> 播放器：切走立即暂停，回来恢复（避免用户在别的页面听到数字人）
+    try {
+      var el = document.getElementById("sdk-audio");
+      if (!el) return;
+      if (hide) {
+        if (!el.paused) { el._pausedByHide = true; el.pause(); }
+      } else if (el._pausedByHide) {
+        el.play().catch(function () {});
+        el._pausedByHide = false;
+      }
+    } catch (e) {}
+  }
+
+  function endSession(speakWrapup) {
+    if (sessionEnded) return Promise.resolve();
+    sessionEnded = true;
+    var cid = conversationId;
+    conversationId = "";   // 立即清空：下次说话 ensureConversation 会开新会话
+    greetSent = false;     // 重新武装打招呼
+    touchActivity();
+    return fetch(API_BASE + "/conversations/" + cid + "/end", {
+      method: "POST",
+      headers: { Authorization: "Bearer " + apiToken },
+    }).then(function (r) { return r.json(); }).then(function (res) {
+      var summary = (res && res.data && res.data.summary) || "";
+      dbg("session ended, summary=" + (summary || "(无)"));
+      var ended = document.visibilityState === "visible";
+      if (speakWrapup && ended && sdk && sdk.speak) {
+        sdk.speak(WRAPUP_TEXT, true, true);
+        showSubtitle(WRAPUP_TEXT);
+      }
+      setHint(ended ? "倾诉已结束，随时开始新的倾诉" : "上一段倾诉已结束，随时回来继续");
+      try { wx.miniProgram.postMessage({ data: { type: "talk_ended", summary: summary } }); } catch (e) {}
+    }).catch(function () {
+      setHint("倾诉已结束（网络原因小结未生成）");
+    });
+  }
+
+  // 在场超时巡检：30s 一次；仅用户可见时触发收尾（切走时绝不发声）
+  setInterval(function () {
+    if (sessionEnded || !conversationId) return;
+    if (document.visibilityState !== "visible") return;
+    if (Date.now() - lastActivityAt < IDLE_MS) return;
+    endSession(true);
+  }, 30000);
+
+  // 切走/回来：静音 + 计时管理
+  document.addEventListener("visibilitychange", function () {
+    if (document.hidden) {
+      sdkMute(true);
+    } else {
+      sdkMute(false);
+      touchActivity();
+    }
+  });
+
+  // 小程序 → H5 指令轮询（情绪/话题上下文；web-view 加载后无法改 URL 传参）
+  setInterval(function () {
+    if (!apiToken) return;
+    fetch(API_BASE + "/mp/ui-directive", {
+      headers: { Authorization: "Bearer " + apiToken },
+    }).then(function (r) { return r.json(); }).then(function (res) {
+      var p = res && res.data;
+      if (!p) return;
+      touchActivity();
+      if (p.topic) {
+        var line = "你提到「" + p.topic + "」呀。慢慢说，具体是哪件事最让你有感触？";
+        if (sdk && sdk.speak) sdk.speak(line, true, true);
+        showSubtitle(line);
+      }
+    }).catch(function () {});
+  }, 3000);
+
+  function uploadAndChat(blob) {
+    busy = true;
+    var fd = new FormData();
+    fd.append("file", blob, "voice_" + Date.now() + ".wav");
+    fetch(API_BASE + "/upload", {
+      method: "POST",
+      headers: { Authorization: "Bearer " + apiToken },
+      body: fd,
+    }).then(function (r) { return r.json(); }).then(function (res) {
+      if (!res || res.code !== 0) throw new Error((res && res.message) || "上传失败");
+      return ensureConversation().then(function () {
+        return fetch(API_BASE + "/chat/completions", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: "Bearer " + apiToken },
+          body: JSON.stringify({
+            conversationId: conversationId,
+            inputTypes: ["audio"],
+            audioUrl: res.data.fileUrl,
+          }),
+        }).then(function (r) { return r.json(); });
+      });
+    }).then(function (res) {
+      busy = false;
+      setBtnText("按住开始说话");
+      if (btnEl) btnEl.classList.remove("busy");
+      if (!res || res.code !== 0) throw new Error((res && res.message) || "对话失败");
+      var d = res.data || {};
+      // 用户转写先上屏（说话人"您"），再切数字人回复，避免一闪而过
+      if (d.asrText) showSubtitle(d.asrText, "user");
+      var iv = d.intervention || {};
+      if (d.replyText) {
+        var delay = d.asrText ? 900 : 0;
+        setTimeout(function () {
+          conversationStarted = true;
+          showSubtitle(d.replyText, "dh");
+          sdk.speak(d.replyText, true, true);
+        }, delay);
+      }
+      if (iv.type === "hotline") {
+        setTimeout(function () { showHotlineCard(false); }, 1500);
+      } else if (iv.type === "emergency") {
+        // 一级高危：遮罩 + 隐藏"知道了"，必须走热线（原小程序原生弹窗路径已随 cover-view 一起失效）
+        setTimeout(function () { showHotlineCard(true); }, 800);
+      }
+    }).catch(function (e) {
+      busy = false;
+      setBtnText("按住开始说话");
+      if (btnEl) btnEl.classList.remove("busy");
+      setHint("语音发送失败：" + ((e && e.message) || e), true);
+    });
+  }
+
+  if (btnEl) {
+    btnEl.style.pointerEvents = "auto";
+    btnEl.addEventListener("touchstart", function (e) {
+      e.preventDefault();
+      startRecord();
+    }, { passive: false });
+    btnEl.addEventListener("touchend", function (e) {
+      e.preventDefault();
+      stopRecord();
+    }, { passive: false });
+    btnEl.addEventListener("touchcancel", function () { stopRecord(); });
+    // 开发者工具（桌面 Chromium）用鼠标按住
+    btnEl.addEventListener("mousedown", function (e) { e.preventDefault(); startRecord(); });
+    document.addEventListener("mouseup", function () { stopRecord(); });
+  }
+
+  // ---- 统一字幕卡：数字人说话 → 显示其名字；用户说话 → 显示"您" ----
   var subtitleCard = document.getElementById("subtitle");
-  function showSubtitle(text) {
-    document.getElementById("subtitle-text").textContent = text;
+  var subtitleNameEl = document.getElementById("subtitle-name");
+  var subtitleTextEl = document.getElementById("subtitle-text");
+
+  function showSubtitle(text, who) {
+    if (!text) return;
+    var isUser = who === "user";
+    subtitleNameEl.textContent = isUser ? "您" : dhName;
+    subtitleCard.classList.toggle("user", isUser);
+    subtitleTextEl.textContent = text;
     subtitleCard.classList.add("show");
     clearTimeout(showSubtitle._t);
     showSubtitle._t = setTimeout(function () {
@@ -272,19 +687,10 @@
     }, Math.min(6000 + text.length * 250, 15000));
   }
 
-  // ---- 转写区（只显示当前一句）----
-  var asrEl = document.getElementById("asr-text");
-  function showAsr(text) {
-    if (text === "waiting") {
-      asrEl.textContent = "正在听清你说的每一个字…";
-      asrEl.classList.add("empty");
-    } else if (text) {
-      asrEl.textContent = text;
-      asrEl.classList.remove("empty");
-    } else {
-      asrEl.textContent = "";
-      asrEl.classList.add("empty");
-    }
+  // 用户语音转写（含"正在听"占位）也走同一张卡，不再单独占一块区域
+  function showUserSpeech(text) {
+    if (text === "waiting") showSubtitle("正在听你说…", "user");
+    else if (text) showSubtitle(text, "user");
   }
 
   if (!appId || !appSecret) {
@@ -301,21 +707,112 @@
   // 策略：在线状态(status=0)后才打招呼 + 语音看门狗判定无声 + 首次手势补播
   var GREET_TEXT = "准备好了就开口，我一直在听。";
   var greetSent = false;          // 口播是否已发送
+  var greetFetching = false;      // 记忆问候请求进行中（防 5s 兜底重复触发）
   var voiceHeard = false;         // 是否真正开始播放过语音（onVoiceStateChange start）
   var greetSilent = false;        // 判定无声，等待首次用户手势补播
   var conversationStarted = false; // 已开始对话（不再补播打招呼，避免打断回复）
+  var speaking = false;           // SDK 当前是否正在播（speak_start ~ speak_end 之间）
+
+  // ================= 音频解锁（iOS / 微信 web-view 的 autoplay 限制）=================
+  // 真机日志证据：
+  //   static-autoplay=BLOCKED:NotAllowedError   → 系统禁止无手势自动播放
+  //   sdk-audio paused=true ct=0.0 rs=4         → SDK 的 <audio> 有数据但从未被放行
+  //   audioCtx-after-gesture=running            → 只解锁了探针自己的 AudioContext
+  // 结论：声音走的是 SDK 的 <audio id="xmov-avatar-audio">，被 autoplay 策略挂起；
+  //       开发者工具是桌面 Chrome，不拦 autoplay，所以那边"看着正常"。
+  // 解法：① 接管 AudioContext 收集实例 ② 微信 JS-SDK 桥接就绪即解锁
+  //       ③ 任意用户手势再解锁 ④ 解锁后补播被吞掉的那句话
+  var audioUnlocked = false;
+  var lastSpeakText = "";
+  var lastUnlockSpeakAt = 0;
+  var ctxList = window.__dhCtxList || []; // 由页面头部脚本收集（须早于 SDK 加载）
+
+  function resumeContexts() {
+    for (var i = 0; i < ctxList.length; i++) {
+      try { if (ctxList[i].state === "suspended") ctxList[i].resume(); } catch (e) {}
+    }
+  }
+
+  // 解锁媒体通道：静音音频探路 + 放行 SDK 音频元素 + 恢复 AudioContext
+  function unlockMedia(why) {
+    resumeContexts();
+    // 静音音频先 play 一次（iOS 要求首个 play 发生在手势 / 桥接回调里）
+    try {
+      var s = new Audio("probe_silence.wav");
+      s.volume = 0.01;
+      var sp = s.play();
+      if (sp && sp.catch) sp.catch(function () {});
+    } catch (e) {}
+    // SDK 的音频元素：此前一直 paused=true，这里解除静音并放行
+    var els = document.querySelectorAll("audio");
+    for (var i = 0; i < els.length; i++) {
+      var a = els[i];
+      try {
+        a.muted = false;
+        if (!a.volume) a.volume = 1;
+        var p = a.play();
+        if (p && p.catch) p.catch(function () {});
+      } catch (e) {}
+    }
+    if (!audioUnlocked) {
+      audioUnlocked = true;
+      dbg("unlock=" + why + " ctx=" + ctxList.length + " audio=" + els.length);
+    }
+    // 解锁前发出的话已被 speak_end 吞掉（没出过声）→ 补播一次
+    // 注意：必须 !speaking，否则会把正在播的那句话打断/重播（真机曾出现重复打招呼）
+    if (!voiceHeard && !speaking && (greetSent || conversationStarted) && sdk && sdk.speak) {
+      var now = Date.now();
+      if (now - lastUnlockSpeakAt > 2000) {
+        lastUnlockSpeakAt = now;
+        var text = lastSpeakText || GREET_TEXT;
+        dbg("unlock-respeak");
+        sdk.speak(text, true, true);
+        showSubtitle(text);
+      }
+    }
+  }
+
+  // ② 微信 JS-SDK 桥接就绪：iOS 微信 web-view 唯一"免手势"的解锁时机
+  (function bindWeixinUnlock() {
+    function ready() {
+      try {
+        WeixinJSBridge.invoke("getNetworkType", {}, function () { unlockMedia("bridge-invoke"); });
+      } catch (e) {
+        unlockMedia("bridge");
+      }
+      // 桥接就绪时 SDK 的音频元素/AudioContext 可能还没创建，错峰再补几次
+      [400, 1500, 3500, 6000].forEach(function (ms) {
+        setTimeout(function () { unlockMedia("bridge-retry"); }, ms);
+      });
+    }
+    if (typeof WeixinJSBridge !== "undefined") ready();
+    else document.addEventListener("WeixinJSBridgeReady", ready, false);
+  })();
+
+  // ③ 任意用户手势（H5 区域内点击/触摸）再解锁一次，双保险
+  ["touchstart", "touchend", "click"].forEach(function (ev) {
+    document.addEventListener(ev, function () { unlockMedia(ev); }, true);
+  });
+
 
   // ---- 音频自检探针（真机诊断用，结果同时显示在左上角 dbg 状态条，不依赖 vConsole）----
   // 目的：一次性区分 Android 无声的两类根因
   //   static-autoplay=BLOCKED → 自动播放被系统拦截（需用户手势）
   //   static-autoplay=OK 但 sdk-audio 不动 → SDK 音频通道在本机不可用
-  var dbgLines = ["v3 raw_audio"];
+  // 调试条默认关闭：URL 带 ?debug=1 才显示（真机排查时截图用），console 始终输出
+  var DBG_ON = /[?&]debug=1/.test(location.search);
+  var dbgLines = ["v4 raw_audio"];
   function dbg(line) {
     console.log("[audio-probe] " + line);
+    if (!DBG_ON) return;
     dbgLines.push(line);
     if (dbgLines.length > 6) dbgLines.shift();
     var el = document.getElementById("dbg");
     if (el) el.textContent = dbgLines.join("\n");
+  }
+  if (DBG_ON) {
+    var dbgEl = document.getElementById("dbg");
+    if (dbgEl) dbgEl.classList.add("on");
   }
   var probeStaticDone = false;
   function probeStaticAudio() {
@@ -359,35 +856,48 @@
   }
 
   function fireGreet() {
-    if (greetSent) return;
-    greetSent = true;
+    if (greetSent || greetFetching) return;
+    greetSent = true;          // 立即置位：防 5s 兜底定时器重复触发
+    greetFetching = true;
+    // 异步取记忆问候（GET /greeting 读本人记忆定制开场白）；3s 超时回退固定文案
+    var ctrl = new AbortController();
+    var timer = setTimeout(function () { ctrl.abort(); }, 3000);
+    fetch("/api/v1/greeting", { headers: { Authorization: "Bearer " + apiToken }, signal: ctrl.signal })
+      .then(function (r) { return r.json(); })
+      .then(function (res) {
+        var text = (res && res.code === 0 && res.data && res.data.greeting) ? res.data.greeting : GREET_TEXT;
+        speakGreet(text);
+      })
+      .catch(function () { speakGreet(GREET_TEXT); })
+      .then(function () { clearTimeout(timer); greetFetching = false; });
+  }
+
+  // 口播问候（fetch 返回或超时回退统一入口）。用户已抢先开口则放弃，避免打断
+  function speakGreet(text) {
+    if (conversationStarted) return;
+    lastSpeakText = text; // 供音频解锁后补播
+    lastUnlockSpeakAt = Date.now();
     window.dhSpeakLog = window.dhSpeakLog || [];
-    window.dhSpeakLog.push({ t: Date.now(), text: "greet", src: "auto" });
-    dbg("greet sent");
-    sdk.speak(GREET_TEXT, true, true);
-    showSubtitle(GREET_TEXT);
+    window.dhSpeakLog.push({ t: Date.now(), text: "greet", src: "memory" });
+    dbg("greet sent (memory)");
+    sdk.speak(text, true, true);
+    showSubtitle(text);
     setHint("");
     probeStaticAudio();
     probeSdkAudio();
     // 看门狗：3.5s 内没收到语音 start → 判定无声（autoplay 挂起 / 过渡期丢弃）
     setTimeout(function () {
-      if (!voiceHeard && !conversationStarted) greetSilent = true;
+      if (!voiceHeard && !speaking && !conversationStarted) {
+        greetSilent = true;
+        if (!audioUnlocked) {
+          setHint("轻触屏幕任意位置，让小满开口");
+        } else {
+          // 已解锁但还没出声：多半是这句被吞了，直接补播
+          unlockMedia("watchdog");
+        }
+      }
     }, 3500);
   }
-
-  // 首次 web-view 内用户手势：解锁音频，若打招呼无声则补播
-  function onFirstGesture() {
-    document.removeEventListener("touchstart", onFirstGesture, true);
-    document.removeEventListener("click", onFirstGesture, true);
-    if (greetSilent && !conversationStarted) {
-      greetSilent = false;
-      window.dhSpeakLog.push({ t: Date.now(), text: "greet", src: "gesture-retry" });
-      sdk.speak(GREET_TEXT, true, true);
-      showSubtitle(GREET_TEXT);
-    }
-  }
-  document.addEventListener("touchstart", onFirstGesture, true);
-  document.addEventListener("click", onFirstGesture, true);
 
   // #back 指令：返回小程序上一页（此前只调用未定义，补定义）
   function mpBack() {
@@ -425,10 +935,16 @@
     },
     // 说话状态（speak_start/speak_end/speak_error）：speak_error 视为无声
     onSpeakStateChange: function (state) {
+      var st = String(state);
       window.dhSpeakStates = window.dhSpeakStates || [];
-      window.dhSpeakStates.push(String(state) + "@" + Date.now() % 100000);
-      dbg("speak:" + String(state));
-      if (String(state) === "speak_error" && !conversationStarted) greetSilent = true;
+      window.dhSpeakStates.push(st + "@" + Date.now() % 100000);
+      dbg("speak:" + st);
+      speaking = st === "speak_start"; // 供 unlockMedia 判断"是否正在播"，避免打断重播
+      if (st === "speak_error" && !conversationStarted) greetSilent = true;
+      // 说完了但从没出过声，且媒体通道确实没解锁 → 给用户一个可操作的提示
+      if (st === "speak_end" && !voiceHeard && !audioUnlocked) {
+        setHint("轻触屏幕任意位置开启声音");
+      }
     },
     onMessage: function (message) {
       console.warn("SDK message:", message);
@@ -445,6 +961,7 @@
         voiceHeard = true;
         greetSilent = false;
         dbg("voice=start");
+        setHint(""); // 出声了，清掉"轻触屏幕开启声音"之类的提示
       }
       try { wx.miniProgram.postMessage({ data: { type: "voice_state", status: String(status) } }); } catch (e) {}
     },
@@ -461,18 +978,27 @@
         var text = m[1];
         if (text) {
           conversationStarted = true;
+          lastSpeakText = text; // 供音频解锁后补播
+          lastUnlockSpeakAt = Date.now();
           window.dhSpeakLog = window.dhSpeakLog || [];
           window.dhSpeakLog.push({ t: Date.now(), text: text.slice(0, 20) });
+          // 还没解锁就先尝试放行媒体通道（Android 常可直接生效，iOS 需等手势/桥接）
+          if (!audioUnlocked) unlockMedia("hash-speak");
           sdk.speak(text, true, true);
           showSubtitle(text);
           setHint("");
         }
+      } else if (/unlock/.test(cmd)) {
+        // 小程序端按住说话时下发，给 H5 一次解锁机会
+        unlockMedia("mini-program");
       } else if ((m = /(?:^|&)asr=([\s\S]*)/.exec(cmd))) {
-        showAsr(m[1]);
+        showUserSpeech(m[1]); // 用户转写也走统一字幕卡（说话人显示"您"）
       } else if (/hotline=show/.test(cmd)) {
-        hotlineCard.classList.add("show");
+        showHotlineCard(false);
       } else if (/hotline=hide/.test(cmd)) {
         hotlineCard.classList.remove("show");
+        hotlineCard.classList.remove("emergency");
+        if (hotlineMask) hotlineMask.classList.remove("show");
       } else if (/(?:^|&)back$/.test(cmd)) {
         mpBack();
       }

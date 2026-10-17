@@ -5,6 +5,8 @@ py-feat 2.x API：Detectorv1 输出经典 7 类情绪概率（emotion_probcols�
 import logging
 import time
 
+from services.infer_lock import INFER_LOCK, limit_torch_threads, FACE_EXECUTOR
+
 logger = logging.getLogger("face_service")
 
 _detector = None
@@ -17,6 +19,7 @@ NEGATIVE = {"anger", "sadness", "fear", "disgust"}
 def _get_detector():
     global _detector
     if _detector is None:
+        limit_torch_threads()
         from feat import Detectorv1
         _detector = Detectorv1()
     return _detector
@@ -30,8 +33,9 @@ def analyze_face(image_path: str, top_k: int = 3) -> dict:
     """
     t0 = time.time()
     try:
-        d = _get_detector()
-        result = d.detect(image_path, progress_bar=False)
+        with INFER_LOCK:  # 与 ASR/emotion2vec 串行，避免多路推理抢占 CPU
+            d = _get_detector()
+            result = d.detect(image_path, progress_bar=False)
     except Exception as e:
         logger.warning(f"表情识别失败: {e}")
         return {"labels": [], "distress_score": 0.0, "latency_s": round(time.time() - t0, 2), "faces_detected": 0}
@@ -51,6 +55,14 @@ def analyze_face(image_path: str, top_k: int = 3) -> dict:
         "latency_s": round(time.time() - t0, 2),
         "faces_detected": 1,
     }
+
+
+# ---------- 异步封装：固定在 FACE_EXECUTOR 这条专属线程上跑 ----------
+# Py-Feat / OpenCV / torch 的原生对象跨线程调用会崩（进程无日志消失）
+async def analyze_face_async(image_path: str, top_k: int = 3) -> dict:
+    import asyncio
+    loop = asyncio.get_running_loop()
+    return await loop.run_in_executor(FACE_EXECUTOR, analyze_face, image_path, top_k)
 
 
 if __name__ == "__main__":

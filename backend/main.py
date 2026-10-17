@@ -119,27 +119,88 @@ def _ensure_alert_columns():
         conn.commit()
 
 
-def _preheat_models():
-    """后台线程预热多模态模型（FunASR/emotion2vec/Py-Feat），避免首次请求 30s 冷启动"""
-    import threading
+def _ensure_memory_columns():
+    """SQLite 兼容迁移：旧库 memories 补齐 kind / importance（create_all 不会给已有表加列）"""
+    from sqlalchemy import text
 
-    def _warm():
+    ddl = [
+        ("kind", "ALTER TABLE memories ADD COLUMN kind VARCHAR(16) DEFAULT 'emotion'"),
+        ("importance", "ALTER TABLE memories ADD COLUMN importance VARCHAR(8) DEFAULT 'mid'"),
+    ]
+    with engine.connect() as conn:
+        cols = {row[1] for row in conn.execute(text("PRAGMA table_info(memories)"))}
+        for name, stmt in ddl:
+            if cols and name not in cols:
+                conn.execute(text(stmt))
+        conn.commit()
+
+
+def _ensure_conversation_columns():
+    """SQLite 兼容迁移：旧库 conversations 补齐 status / summary / ended_at（常驻倾诉页会话生命周期）"""
+    from sqlalchemy import text
+
+    ddl = [
+        ("status", "ALTER TABLE conversations ADD COLUMN status VARCHAR(16) DEFAULT 'active'"),
+        ("summary", "ALTER TABLE conversations ADD COLUMN summary VARCHAR(256) DEFAULT ''"),
+        ("ended_at", "ALTER TABLE conversations ADD COLUMN ended_at DATETIME"),
+    ]
+    with engine.connect() as conn:
+        cols = {row[1] for row in conn.execute(text("PRAGMA table_info(conversations)"))}
+        for name, stmt in ddl:
+            if cols and name not in cols:
+                conn.execute(text(stmt))
+        conn.commit()
+
+
+def _preheat_models():
+    """预热多模态模型（FunASR/emotion2vec/Py-Feat），避免首次请求 30s+ 冷启动
+
+    必须提交到各模型自己的专属线程（AUDIO_EXECUTOR / FACE_EXECUTOR），
+    保证"模型在哪个线程创建，就永远在哪个线程使用"——跨线程会原生崩溃。
+    """
+    from services.infer_lock import AUDIO_EXECUTOR, FACE_EXECUTOR
+
+    def _warm_audio():
         try:
-            from services import audio_service, face_service
+            from services import audio_service
             audio_service._get_asr()
             audio_service._get_emo()
-            face_service._get_detector()
-            print("[preheat] 多模态模型预热完成")
+            print("[preheat] 音频模型预热完成")
         except Exception as e:
-            print(f"[preheat] 预热失败（不影响服务）: {e}")
+            print(f"[preheat] 音频模型预热失败（不影响服务）: {e}")
 
-    threading.Thread(target=_warm, daemon=True).start()
+    def _warm_face():
+        try:
+            from services import face_service
+            face_service._get_detector()
+            print("[preheat] 表情模型预热完成")
+        except Exception as e:
+            print(f"[preheat] 表情模型预热失败（不影响服务）: {e}")
+
+    AUDIO_EXECUTOR.submit(_warm_audio)
+    FACE_EXECUTOR.submit(_warm_face)
+
+
+def _memory_watchdog():
+    """每 20 秒打印一次进程峰值内存，用于定位多模态调试时进程被杀的内存曲线"""
+    import resource
+    import time as _time
+
+    baseline = None
+    while True:
+        peak = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss // (1024 * 1024)
+        if baseline is None:
+            baseline = peak
+        print(f"[mem] 峰值RSS={peak}MB (+{peak - baseline}MB)", flush=True)
+        _time.sleep(20)
 
 
 @app.on_event("startup")
 def startup():
     Base.metadata.create_all(bind=engine)
     _ensure_alert_columns()
+    _ensure_memory_columns()
+    _ensure_conversation_columns()
     db = SessionLocal()
     try:
         if db.query(entities.DigitalHuman).count() == 0:
@@ -161,6 +222,11 @@ def startup():
     finally:
         db.close()
     _preheat_models()
+
+    # 内存观测线程（daemon）：多模态调试时追踪峰值内存曲线
+    import threading
+
+    threading.Thread(target=_memory_watchdog, daemon=True).start()
 
 
 @app.get("/")

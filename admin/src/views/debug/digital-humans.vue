@@ -9,7 +9,8 @@
         <el-card shadow="never" class="dh-card">
           <div class="dh-head">
             <div class="dh-avatar">
-              <img :src="dh.avatar" :alt="dh.name" />
+              <img v-if="dh.avatar" :src="dh.avatar" :alt="dh.name" @error="onAvatarError(dh)" />
+              <span v-else class="dh-avatar-fallback">{{ (dh.name || '·').slice(0, 1) }}</span>
             </div>
             <div class="dh-info">
               <div class="dh-name">
@@ -63,6 +64,11 @@ import { getDigitalHumans, updateDigitalHuman } from '@/api/admin'
 const loading = ref(false)
 const saving = ref(false)
 const rows = ref([])
+
+// 头像加载失败时退化为首字母占位（后端 avatar 指向的静态文件可能缺失）
+function onAvatarError(dh) {
+  dh.avatar = ''
+}
 
 async function load() {
   loading.value = true
@@ -123,7 +129,17 @@ onMounted(load)
   width: 100%;
   height: 100%;
   object-fit: cover;
-  display: block;
+}
+.dh-avatar-fallback {
+  display: flex;
+  width: 100%;
+  height: 100%;
+  align-items: center;
+  justify-content: center;
+  font-size: 34px;
+  font-weight: 700;
+  color: #fff;
+  background: linear-gradient(135deg, #6b9bd2, #4a7fb5);
 }
 .dh-info {
   display: flex;

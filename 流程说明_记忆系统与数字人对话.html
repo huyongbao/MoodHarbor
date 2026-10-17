@@ -1,0 +1,624 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>情绪树洞 · 记忆系统与数字人对话全链路</title>
+<style>
+  :root{
+    --bg:#f7f6f3; --card:#ffffff; --ink:#2b2a27; --ink2:#5c5a54; --ink3:#8a877f;
+    --line:#e4e1da; --accent:#c96a3f; --accent2:#3d7a63; --accent3:#3a5f8a;
+    --warn:#b4493a; --soft:#f1ede5;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; background:var(--bg); color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Noto Sans SC",sans-serif;
+    line-height:1.7; -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:1080px;margin:0 auto;padding:56px 28px 96px;}
+  header{border-bottom:2px solid var(--ink);padding-bottom:22px;margin-bottom:44px;}
+  h1{font-size:30px;margin:0 0 10px;letter-spacing:.5px;font-weight:800;}
+  .sub{color:var(--ink2);font-size:14px;}
+  .tagline{
+    display:inline-block;margin-top:14px;padding:6px 12px;border-radius:999px;
+    background:var(--soft);color:var(--ink2);font-size:12.5px;letter-spacing:.3px;
+  }
+  h2{
+    font-size:20px;margin:56px 0 18px;padding-left:12px;
+    border-left:4px solid var(--accent);font-weight:700;
+  }
+  h3{font-size:15.5px;margin:30px 0 12px;color:var(--ink);font-weight:700;}
+  p{margin:10px 0;font-size:14.5px;color:var(--ink2);}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:22px 24px;margin:16px 0;}
+  .note{border-left:3px solid var(--accent2);background:#f2f7f4;padding:14px 18px;border-radius:0 10px 10px 0;font-size:13.5px;color:#3c5a4d;}
+  .warn{border-left:3px solid var(--warn);background:#fbf1ee;padding:14px 18px;border-radius:0 10px 10px 0;font-size:13.5px;color:#7d3b2f;}
+
+  /* ===== 架构分层图 ===== */
+  .arch{display:flex;flex-direction:column;gap:10px;margin:22px 0;}
+  .layer{border:1px solid var(--line);border-radius:12px;background:var(--card);overflow:hidden;}
+  .layer-head{
+    display:flex;align-items:center;gap:10px;padding:11px 16px;
+    font-size:13px;font-weight:700;letter-spacing:.4px;border-bottom:1px solid var(--line);
+  }
+  .layer-head .dot{width:8px;height:8px;border-radius:50%;}
+  .layer-body{padding:14px 16px;display:flex;flex-wrap:wrap;gap:8px;}
+  .chip{
+    font-size:12.5px;padding:6px 11px;border-radius:8px;background:var(--soft);
+    color:var(--ink2);border:1px solid var(--line);white-space:nowrap;
+  }
+  .chip.k{background:#fdf0e9;border-color:#f0d5c4;color:#a1512b;font-weight:600;}
+  .chip.m{background:#eef4f9;border-color:#d5e3ef;color:#33567c;}
+  .chip.g{background:#eff6f2;border-color:#d3e7dc;color:#2f6b54;}
+  .arrow-down{text-align:center;color:var(--ink3);font-size:18px;line-height:1;margin:-2px 0;}
+
+  /* ===== 闭环图 ===== */
+  .loop{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin:20px 0;}
+  .loop-step{
+    background:var(--card);border:1px solid var(--line);border-radius:12px;
+    padding:14px 12px;text-align:center;position:relative;
+  }
+  .loop-step .n{
+    display:inline-flex;width:22px;height:22px;border-radius:50%;
+    align-items:center;justify-content:center;font-size:11.5px;font-weight:700;
+    background:var(--accent);color:#fff;margin-bottom:8px;
+  }
+  .loop-step .t{font-size:12.8px;font-weight:700;display:block;margin-bottom:4px;}
+  .loop-step .d{font-size:11.5px;color:var(--ink3);line-height:1.55;}
+  .loop-step:not(:last-child)::after{
+    content:"→";position:absolute;right:-11px;top:50%;transform:translateY(-50%);
+    color:var(--ink3);font-size:14px;z-index:2;
+  }
+
+  /* ===== 时序泳道 ===== */
+  .lane-wrap{overflow-x:auto;margin:20px 0;padding-bottom:6px;}
+  .lanes{display:grid;grid-template-columns:112px repeat(4,minmax(196px,1fr));gap:0;min-width:900px;}
+  .lanes .hd{
+    font-size:12px;font-weight:700;padding:10px 12px;background:var(--soft);
+    border:1px solid var(--line);color:var(--ink2);letter-spacing:.3px;
+  }
+  .lanes .hd:first-child{background:#eae6dc;border-radius:10px 0 0 0;}
+  .lanes .hd:last-child{border-radius:0 10px 0 0;}
+  .lanes .rowlab{
+    font-size:12px;font-weight:700;padding:14px 12px;background:#faf8f4;
+    border:1px solid var(--line);border-top:none;color:var(--ink);
+  }
+  .lanes .cell{
+    padding:12px;border:1px solid var(--line);border-top:none;border-left:none;
+    background:var(--card);font-size:12.2px;color:var(--ink2);line-height:1.6;
+  }
+  .lanes .cell b{color:var(--ink);font-weight:700;display:block;margin-bottom:3px;font-size:12.4px;}
+  .lanes .cell.hl{background:#fdf7f2;}
+  .lanes .cell.mem{background:#f3f8f5;}
+
+  /* ===== 12 步 ===== */
+  .steps{margin:18px 0;counter-reset:s;}
+  .step{
+    display:grid;grid-template-columns:38px 1fr;gap:14px;padding:13px 0;
+    border-bottom:1px dashed var(--line);
+  }
+  .step:last-child{border-bottom:none;}
+  .step .num{
+    width:30px;height:30px;border-radius:9px;background:var(--soft);color:var(--ink2);
+    display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;
+  }
+  .step.key .num{background:var(--accent);color:#fff;}
+  .step.mem .num{background:var(--accent2);color:#fff;}
+  .step .body .t{font-size:14px;font-weight:700;margin-bottom:3px;}
+  .step .body .d{font-size:13px;color:var(--ink2);}
+  .step .body .meta{font-size:11.5px;color:var(--ink3);margin-top:4px;font-family:ui-monospace,Menlo,monospace;}
+
+  /* ===== 表格 ===== */
+  table{width:100%;border-collapse:collapse;margin:16px 0;font-size:13px;}
+  th{
+    text-align:left;padding:10px 12px;background:var(--soft);color:var(--ink);
+    font-weight:700;border-bottom:2px solid var(--line);font-size:12.5px;
+  }
+  td{padding:10px 12px;border-bottom:1px solid var(--line);color:var(--ink2);vertical-align:top;}
+  tr:last-child td{border-bottom:none;}
+  code{
+    font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;
+    background:var(--soft);padding:2px 5px;border-radius:4px;color:#8a4a2a;
+  }
+  .mono{font-family:ui-monospace,Menlo,monospace;font-size:12.2px;}
+
+  /* ===== Prompt 结构 ===== */
+  .prompt{border:1px solid var(--line);border-radius:12px;overflow:hidden;margin:16px 0;}
+  .prompt .ln{display:grid;grid-template-columns:96px 1fr;font-size:12.5px;}
+  .prompt .ln > div{padding:11px 14px;border-bottom:1px solid var(--line);}
+  .prompt .ln:last-child > div{border-bottom:none;}
+  .prompt .role{background:var(--soft);font-weight:700;color:var(--ink2);font-size:11.5px;letter-spacing:.3px;}
+  .prompt .txt{color:var(--ink2);background:#fff;}
+  .prompt .ln.hi .role{background:#e8f1ec;color:#2f6b54;}
+  .prompt .ln.hi .txt{background:#f7fbf8;}
+
+  /* ===== 数值走查 ===== */
+  .walk{margin:18px 0;border:1px solid var(--line);border-radius:12px;overflow:hidden;}
+  .walk .w{
+    display:grid;grid-template-columns:34px 1fr 132px;gap:12px;
+    padding:12px 16px;border-bottom:1px solid var(--line);background:#fff;align-items:center;
+  }
+  .walk .w:last-child{border-bottom:none;}
+  .walk .w .i{font-size:11.5px;color:var(--ink3);font-weight:700;}
+  .walk .w .c{font-size:13px;color:var(--ink2);}
+  .walk .w .r{
+    font-size:12.5px;font-weight:700;color:var(--accent);
+    font-family:ui-monospace,Menlo,monospace;text-align:right;
+  }
+  .walk .w.up{background:#fdf7f2;}
+
+  ul{margin:10px 0;padding-left:20px;font-size:14px;color:var(--ink2);}
+  li{margin:6px 0;}
+  .foot{margin-top:60px;padding-top:20px;border-top:1px solid var(--line);font-size:12px;color:var(--ink3);}
+
+  @media (max-width:760px){
+    .loop{grid-template-columns:1fr;}
+    .loop-step:not(:last-child)::after{content:"↓";right:50%;top:auto;bottom:-14px;transform:translateX(50%);}
+    .walk .w{grid-template-columns:28px 1fr;}
+    .walk .w .r{grid-column:2;text-align:left;}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <h1>情绪树洞 · 记忆系统与数字人对话全链路</h1>
+  <div class="sub">依据当前仓库代码整理（backend + miniprogram + digital_human/index.html） · 2026-10-17</div>
+  <div class="tagline">记忆 = 关系型时序快照 · 数字人 = 只有嘴和脸 · 后端 = 总调度器</div>
+</header>
+
+<h2>一、全局架构：谁在什么时候被调用</h2>
+
+<p>整条链路只有三个角色：小程序负责"壳"（会话、跳转、兜底），H5 负责"交互"（录音、字幕、3D 渲染），后端负责"判断"（模型编排、风险分级、记忆沉淀）。</p>
+
+<div class="arch">
+  <div class="layer">
+    <div class="layer-head"><span class="dot" style="background:#3a5f8a"></span>微信小程序 · 原生层</div>
+    <div class="layer-body">
+      <span class="chip">pages/home 点击"我想聊聊"</span>
+      <span class="chip">pages/talk 建会话</span>
+      <span class="chip">GET /digital-human/view</span>
+      <span class="chip">隐藏 camera 每 4s 取帧</span>
+      <span class="chip">wx.makePhoneCall</span>
+    </div>
+  </div>
+  <div class="arrow-down">▼</div>
+  <div class="layer">
+    <div class="layer-head"><span class="dot" style="background:#c96a3f"></span>web-view 内 H5 · 主交互层（digital_human/index.html）</div>
+    <div class="layer-body">
+      <span class="chip k">魔珐星云 XmovAvatar：3D / TTS / 口型</span>
+      <span class="chip k">getUserMedia 录音 → 16k WAV</span>
+      <span class="chip">POST /upload</span>
+      <span class="chip">POST /chat/completions</span>
+      <span class="chip">字幕卡 / 热线卡 / 音频解锁</span>
+    </div>
+  </div>
+  <div class="arrow-down">▼</div>
+  <div class="layer">
+    <div class="layer-head"><span class="dot" style="background:#3d7a63"></span>FastAPI 后端 · /chat/completions 是总调度器</div>
+    <div class="layer-body">
+      <span class="chip m">FunASR paraformer-zh → 文本</span>
+      <span class="chip m">emotion2vec+ → 9 类情绪</span>
+      <span class="chip m">Py-Feat → 7 类表情</span>
+      <span class="chip g">memory_service → 趋势摘要</span>
+      <span class="chip m">deepseek-flash → replyText + riskLevel</span>
+      <span class="chip g">矛盾提升 / 趋势提升</span>
+      <span class="chip g">写记忆 + 预警 + 留痕</span>
+    </div>
+  </div>
+  <div class="arrow-down">▼</div>
+  <div class="layer">
+    <div class="layer-head"><span class="dot" style="background:#8a877f"></span>SQLite</div>
+    <div class="layer-body">
+      <span class="chip mono">users</span><span class="chip mono">conversations</span><span class="chip mono">messages</span>
+      <span class="chip mono" style="background:#e8f1ec;color:#2f6b54">memories</span>
+      <span class="chip mono">risk_alerts</span><span class="chip mono">risk_evaluations</span>
+      <span class="chip mono">hotlines</span><span class="chip mono">self_help</span>
+    </div>
+  </div>
+</div>
+
+<h2>二、记忆系统：一条闭环，五个环节</h2>
+
+<p>记忆不是"知识库"，而是"情绪病历本"。每轮对话结束写一条快照，下一轮开始前读最近 10 条，压缩成一段中文摘要塞进 Prompt，再用最近 3 条判断是否持续恶化来改写风险等级。</p>
+
+<div class="loop">
+  <div class="loop-step">
+    <span class="n">1</span>
+    <span class="t">写 入</span>
+    <span class="d">对话结束后<br>content 截断 120 字<br>+ 最终风险等级</span>
+  </div>
+  <div class="loop-step">
+    <span class="n">2</span>
+    <span class="t">存 储</span>
+    <span class="d">SQLite memories 表<br>按 user_id 隔离<br>时间倒序索引</span>
+  </div>
+  <div class="loop-step">
+    <span class="n">3</span>
+    <span class="t">检 索</span>
+    <span class="d">get_trend(10)<br>get_recent(3)<br>is_worsening(3,3)</span>
+  </div>
+  <div class="loop-step">
+    <span class="n">4</span>
+    <span class="t">注入 Prompt</span>
+    <span class="d">拼成第 2 条 system<br>与实时模态共用槽位</span>
+  </div>
+  <div class="loop-step">
+    <span class="n">5</span>
+    <span class="t">改写等级</span>
+    <span class="d">趋势提升：<br>连续 3 次 ≤3 级<br>→ 本轮 -1（不低于 2）</span>
+  </div>
+</div>
+
+<h3>2.1 表结构（一条记忆 = 一次对话快照）</h3>
+<table>
+  <tr><th style="width:130px">字段</th><th style="width:110px">类型</th><th>说明</th></tr>
+  <tr><td><code>user_id</code></td><td>int FK</td><td>按用户隔离，带索引</td></tr>
+  <tr><td><code>conversation_id</code></td><td>str(32)</td><td>来源会话，管理端可回溯到具体对话</td></tr>
+  <tr><td><code>content</code></td><td>text</td><td><b>只存用户输入，截断 120 字</b>；不存 AI 回复（隐私最小化）</td></tr>
+  <tr><td><code>emotion</code></td><td>str(32)</td><td><b>由 risk_level 映射而来</b>：1 危机 / 2 崩溃绝望 / 3 愤怒焦虑 / 4 平稳</td></tr>
+  <tr><td><code>risk_level</code></td><td>int</td><td>1 红 / 2 橙 / 3 黄 / 4 蓝，存的是<b>提升后</b>的最终等级</td></tr>
+  <tr><td><code>created_at</code></td><td>datetime</td><td>UTC，检索排序依据</td></tr>
+</table>
+
+<h3>2.2 三个消费点</h3>
+<table>
+  <tr><th style="width:130px">用途</th><th style="width:170px">函数</th><th style="width:130px">参数</th><th>做什么</th></tr>
+  <tr>
+    <td>拼 Prompt</td><td><code>get_trend()</code></td><td>最近 <b>10</b> 条</td>
+    <td>生成「【1】…（情绪：愤怒焦虑，风险3级）; 【2】…」中文摘要</td>
+  </tr>
+  <tr>
+    <td>改等级</td><td><code>is_worsening()</code></td><td>最近 <b>3</b> 条，阈值 <b>≤3 级</b></td>
+    <td>全部命中 → 判定"近期持续恶化"，本轮自动提升一级</td>
+  </tr>
+  <tr>
+    <td>留痕</td><td><code>get_recent()</code></td><td>最近 <b>3</b> 条</td>
+    <td>写进 <code>risk_evaluations.trajectory</code>，如 <code>[3,3,2]</code></td>
+  </tr>
+</table>
+
+<h3>2.3 记忆怎么进入 Prompt</h3>
+<p>记忆不是独立的一条消息，而是与"本轮语音/表情标签"共用同一条 system message——这是当前实现的一个关键设计（也是后面要提的问题之一）。</p>
+
+<div class="prompt">
+  <div class="ln">
+    <div class="role">system ①</div>
+    <div class="txt">树洞人设 + 四级风险定义 + 强制 JSON 输出格式（<code>llm_provider.SYSTEM_PROMPT</code>，硬编码）</div>
+  </div>
+  <div class="ln hi">
+    <div class="role">system ②</div>
+    <div class="txt">「用户近期情绪趋势：【1】今天又被投诉了（情绪：愤怒焦虑，风险3级）; 【2】…；<b>语音情绪：悲伤/sad(0.72)；表情情绪：sadness(0.81)</b>」<br><span style="font-size:11.5px;color:#2f6b54">← 前半段来自记忆，后半段来自本轮模态</span></div>
+  </div>
+  <div class="ln">
+    <div class="role">user</div>
+    <div class="txt">本轮文本（语音输入时为 FunASR 转写结果）</div>
+  </div>
+</div>
+
+<div class="warn">
+  <b>注意：messages 里没有历史对话。</b>模型只知道"最近 10 次的情绪梗概"，不知道"上一句具体说了什么"。这会让连续对话出现重复共情、追问已答过的问题。
+</div>
+
+<h3>2.4 记忆怎么改写风险等级</h3>
+<div class="card">
+  <p style="margin-top:0"><b>趋势提升规则</b>（<code>miniprogram.py:216</code>）</p>
+  <p class="mono" style="background:var(--soft);padding:12px 14px;border-radius:8px;color:#5c5a54">
+    if riskLevel &gt;= 2 and 最近3条记忆的 risk_level 全部 &lt;= 3:<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;riskLevel = max(2, riskLevel - 1)&nbsp;&nbsp;<span style="color:#3d7a63"># 数值减 1 = 等级提升一级</span>
+  </p>
+  <p style="margin-bottom:0"><b>为什么封底在 2 级</b>：1 级危机只能由模型明确识别自杀意念、或"文本低风险 + 表情/语音极高痛苦"的矛盾提升触发。趋势提升不允许把用户直接判成 1 级，避免误报把用户推给急救资源。</p>
+</div>
+
+<h2>三、数字人对话：四个阶段</h2>
+
+<div class="lane-wrap">
+  <div class="lanes">
+    <div class="hd">层 / 阶段</div>
+    <div class="hd">① 进入</div>
+    <div class="hd">② 唤醒</div>
+    <div class="hd">③ 一轮对话</div>
+    <div class="hd">④ 反馈</div>
+
+    <div class="rowlab">小程序原生</div>
+    <div class="cell"><b>建会话 + 取地址</b>POST /conversations<br>GET /digital-human/view<br>拼 token &amp; cid 进 URL</div>
+    <div class="cell">web-view 加载 H5<br><span style="color:#8a877f">（透传 JWT 与会话 ID）</span></div>
+    <div class="cell">隐藏 camera 每 4s 取帧<br><span style="color:#8a877f">仅兜底路径消费</span></div>
+    <div class="cell">onWebviewMessage<br>→ wx.makePhoneCall</div>
+
+    <div class="rowlab">H5 交互层</div>
+    <div class="cell">解析 appid / secret / token / cid</div>
+    <div class="cell"><b>SDK 唤醒</b>sdk.init → 资源下载<br>status=0 在线 → 打招呼<br>音频解锁 + 无声看门狗</div>
+    <div class="cell hl"><b>录音 → 上传 → 等回复</b>getUserMedia → PCM → 16k WAV<br>POST /upload → POST /chat</div>
+    <div class="cell hl">字幕卡（您 → 小满）<br>sdk.speak 口播<br>热线卡 / 全屏遮罩</div>
+
+    <div class="rowlab">算法模型</div>
+    <div class="cell">—</div>
+    <div class="cell">星云 SDK：TTS + 口型<br><span style="color:#8a877f">后端不产音频</span></div>
+    <div class="cell"><b>FunASR / emotion2vec+ / Py-Feat</b><br>deepseek-flash 共情 + 风险推理</div>
+    <div class="cell">星云 TTS 合成语音<br>+ 口型驱动</div>
+
+    <div class="rowlab">记忆系统</div>
+    <div class="cell">—</div>
+    <div class="cell">—</div>
+    <div class="cell mem"><b>读</b> get_trend(10) → Prompt<br><b>读</b> is_worsening(3,3) → 改等级<br><b>写</b> add(最终等级)</div>
+    <div class="cell mem">—<br><span style="color:#8a877f">记忆已落库，供下一轮</span></div>
+  </div>
+</div>
+
+<h3>3.1 阶段①：进入倾诉页</h3>
+<table>
+  <tr><th style="width:34px">#</th><th style="width:230px">位置</th><th>动作</th></tr>
+  <tr><td>1</td><td><code>pages/home/home.js</code></td><td>点击"我想聊聊" → <code>navigateTo /pages/talk/talk</code></td></tr>
+  <tr><td>2</td><td><code>talk.js:27-33</code></td><td>标题设为当前陪伴者（小满 / 知远）</td></tr>
+  <tr><td>3</td><td><code>talk.js:70-89</code></td><td>隐藏 <code>&lt;camera&gt;</code> 每 4 秒 <code>takePhoto</code>，帧存 <code>_latestFacePath</code></td></tr>
+  <tr><td>4</td><td><code>talk.js:35-38</code></td><td><code>POST /conversations</code> → 拿 <code>c_xxxxxxxxxx</code></td></tr>
+  <tr><td>5</td><td><code>talk.js:58-62</code></td><td><code>GET /digital-human/view</code>：后端按 <code>digital_human_id</code> 选密钥（dh_01 小满女 / dh_02 知远男）</td></tr>
+  <tr><td>6</td><td><code>miniprogram.py:391-409</code></td><td>拼 H5 地址：<code>/digital-human/index.html?appid=&amp;secret=&amp;name=&amp;v=9</code>（v 用于破缓存）</td></tr>
+  <tr><td>7</td><td><code>talk.js:44-53</code></td><td>前端再拼 <code>&amp;token=</code> + <code>&amp;cid=</code>（H5 要直连后端）</td></tr>
+  <tr><td>8</td><td><code>talk.wxml:5</code></td><td><code>&lt;web-view src="{{dhUrl}}"&gt;</code> 加载，数字人/字幕/按钮/热线卡全在 H5 内</td></tr>
+</table>
+
+<div class="note">
+<b>为什么"按住说话"按钮必须在 H5 里？</b>小程序的 <code>cover-view</code> 只支持覆盖 map / video / canvas / camera / live-player，<b>不支持覆盖 web-view</b>。原生按钮永远盖不到 H5 上，所以录音只能由 H5 自己用 <code>getUserMedia</code> 完成。
+</div>
+
+<h3>3.2 阶段②：数字人唤醒与音频解锁</h3>
+<table>
+  <tr><th style="width:34px">#</th><th style="width:230px">位置</th><th>动作</th></tr>
+  <tr><td>1</td><td><code>index.html:239</code></td><td>加载魔珐星云 <code>xmovAvatar@latest.js</code></td></tr>
+  <tr><td>2</td><td><code>index.html:726-787</code></td><td><code>new XmovAvatar({appId, appSecret, gatewayServer:'nebula-agent.xingyun3d.com', raw_audio:true})</code></td></tr>
+  <tr><td>3</td><td><code>index.html:830-841</code></td><td><code>sdk.init()</code>，回调里显示资源下载百分比</td></tr>
+  <tr><td>4</td><td><code>index.html:737-748</code></td><td><code>onStatusChange(0 在线)</code> → 打招呼：「准备好了就开口，我一直在听。」</td></tr>
+  <tr><td>5</td><td><code>index.html:552-631</code></td><td><b>音频解锁</b>：WeixinJSBridge 就绪 → 静音 wav 探针 → 放行 SDK <code>&lt;audio&gt;</code> → 恢复 AudioContext → 补播被吞的那句</td></tr>
+  <tr><td>6</td><td><code>index.html:707-718</code></td><td>看门狗：3.5s 内无 <code>voice=start</code> → 提示"轻触屏幕任意位置"</td></tr>
+</table>
+<p><code>raw_audio: true</code> 是关键：移动端走 AudioWorklet 播 PCM；默认 MSE/WebM 通道在 Android 微信 X5 内核上会"有动画没声音"。</p>
+
+<h3>3.3 阶段③：一轮对话的 12 步</h3>
+
+<div class="steps">
+  <div class="step">
+    <div class="num">1</div>
+    <div class="body">
+      <div class="t">按住 → 采集 PCM</div>
+      <div class="d">getUserMedia（单声道 / 回声消除 / 降噪）→ AudioContext + ScriptProcessor(4096) 逐帧收 Float32</div>
+      <div class="meta">index.html:312-350</div>
+    </div>
+  </div>
+  <div class="step">
+    <div class="num">2</div>
+    <div class="body">
+      <div class="t">松手 → 编码 16k WAV</div>
+      <div class="d">mergeFloat → downsample 到 16kHz → 16bit 单声道 PCM WAV Blob；按住 &lt;400ms 提示重说</div>
+      <div class="meta">index.html:352-427</div>
+    </div>
+  </div>
+  <div class="step">
+    <div class="num">3</div>
+    <div class="body">
+      <div class="t">上传音频拿 URL</div>
+      <div class="d">POST /api/v1/upload → <code>{fileUrl:"/uploads/u{uid}_xxxx.wav"}</code></div>
+      <div class="meta">index.html:441-450 · miniprogram.py:121-131</div>
+    </div>
+  </div>
+  <div class="step key">
+    <div class="num">4</div>
+    <div class="body">
+      <div class="t">发起对话请求</div>
+      <div class="d">POST /api/v1/chat/completions · body：<code>{conversationId, inputTypes:["audio"], audioUrl}</code></div>
+      <div class="meta">index.html:452-461 · miniprogram.py:144</div>
+    </div>
+  </div>
+  <div class="step">
+    <div class="num">5</div>
+    <div class="body">
+      <div class="t">语音转文本（FunASR）</div>
+      <div class="d">paraformer-zh + fsmn-vad 切分 + ct-punc 标点；结果回填 <code>text</code>（前端未传文本时）</div>
+      <div class="meta">asyncio.to_thread 必须丢线程池，否则堵死事件循环 · miniprogram.py:161-174</div>
+    </div>
+  </div>
+  <div class="step">
+    <div class="num">6</div>
+    <div class="body">
+      <div class="t">语音情感（emotion2vec+）</div>
+      <div class="d">9 类离散情绪概率 top3；<code>distress_score = P(悲伤)+P(担忧)+P(焦虑)+P(害怕)</code></div>
+      <div class="meta">audio_service.py:45-59</div>
+    </div>
+  </div>
+  <div class="step">
+    <div class="num">7</div>
+    <div class="body">
+      <div class="t">表情情感（Py-Feat，可选）</div>
+      <div class="d">仅当 <code>inputTypes</code> 含 image；7 类情绪概率，<code>distress_score = P(sadness)+P(fear)</code>，无人脸则 0</div>
+      <div class="meta">face_service.py:25-53</div>
+    </div>
+  </div>
+  <div class="step mem">
+    <div class="num">8</div>
+    <div class="body">
+      <div class="t">★ 读记忆 → 拼趋势摘要</div>
+      <div class="d"><code>get_trend(db, uid, n=10)</code>，再把本轮语音/表情标签追加到同一字符串</div>
+      <div class="meta">miniprogram.py:187-196</div>
+    </div>
+  </div>
+  <div class="step key">
+    <div class="num">9</div>
+    <div class="body">
+      <div class="t">LLM 共情 + 风险推理（deepseek-flash）</div>
+      <div class="d">三条 messages：人设 / 趋势摘要 / 本轮文本；强制 JSON 输出 <code>{replyText, riskLevel, confidence, reason}</code>；temperature 0.7，max_tokens 300</div>
+      <div class="meta">llm_provider.py:62-115</div>
+    </div>
+  </div>
+  <div class="step">
+    <div class="num">10</div>
+    <div class="body">
+      <div class="t">置信度融合 + 规则兜底</div>
+      <div class="d">confidence &lt; 0.8 → 关键词规则给等级，取更高者；模型异常 → 全量规则兜底 + 固定话术模板（绝不静默失败）</div>
+      <div class="meta">llm_provider.py:33-51 / 88-115</div>
+    </div>
+  </div>
+  <div class="step key">
+    <div class="num">11</div>
+    <div class="body">
+      <div class="t">矛盾提升 + 趋势提升</div>
+      <div class="d">文本 ≥3 级且（表情或语音 distress ≥0.6）→ −1（最低 1）；<br>≥2 级且近 3 条均 ≤3 级 → max(2, −1)</div>
+      <div class="meta">miniprogram.py:202-218</div>
+    </div>
+  </div>
+  <div class="step mem">
+    <div class="num">12</div>
+    <div class="body">
+      <div class="t">★ 落库 + 写记忆 + 预警 + 留痕</div>
+      <div class="d">Message×2 → <code>memory_service.add(最终等级)</code> → 1 级优先升级未闭环 2 级工单（否则新建）→ 2 级新建预警 → 原始评级 3 时写 RiskEvaluation</div>
+      <div class="meta">miniprogram.py:233-290</div>
+    </div>
+  </div>
+</div>
+
+<h3>3.4 阶段④：回到前端</h3>
+<table>
+  <tr><th style="width:64px">顺序</th><th style="width:220px">触发</th><th>表现</th></tr>
+  <tr><td>立即</td><td><code>asrText</code></td><td>字幕卡显示「您：今天又被客户投诉了…」</td></tr>
+  <tr><td>+900ms</td><td><code>replyText</code></td><td>字幕卡切「小满：被这样对待真的会很难受…」+ <code>sdk.speak(text,true,true)</code> 口播</td></tr>
+  <tr><td>+1500ms</td><td><code>intervention.type = hotline</code></td><td>热线卡（温和推荐，可点"知道了"关闭）</td></tr>
+  <tr><td>+800ms</td><td><code>intervention.type = emergency</code></td><td>热线卡 + <b>全屏遮罩 + 隐藏"知道了"</b>（PRD 红线，不可随手关闭）</td></tr>
+  <tr><td>用户点击</td><td>热线卡"联系宁师傅"</td><td><code>postMessage({type:'call_hotline'})</code> + <code>tel:</code> → 小程序 <code>wx.makePhoneCall</code></td></tr>
+</table>
+
+<div class="note">
+<b>TTS 与口型不在后端。</b><code>sdk.speak()</code> 之后，语音合成、音素→口型驱动、3D 渲染全部由魔珐星云完成，后端只返回 <code>replyText</code>，不产生任何音频文件。
+</div>
+
+<h2>四、模型交互一览</h2>
+<table>
+  <tr><th style="width:150px">环节</th><th style="width:210px">模型</th><th style="width:110px">位置</th><th>输入 → 输出</th></tr>
+  <tr>
+    <td>语音转文本</td><td>FunASR<br><span style="font-size:11.5px;color:#8a877f">paraformer-zh + fsmn-vad + ct-punc</span></td><td>本地</td>
+    <td>16k 单声道 WAV → 文本</td>
+  </tr>
+  <tr>
+    <td>语音情感</td><td>emotion2vec_plus_base</td><td>本地</td>
+    <td>音频 → 9 类情绪概率 top3 + distress_score</td>
+  </tr>
+  <tr>
+    <td>表情情感</td><td>Py-Feat Detectorv1</td><td>本地</td>
+    <td>图片 → 7 类情绪概率 top3 + distress_score</td>
+  </tr>
+  <tr>
+    <td>共情 + 分级</td><td>deepseek-flash</td><td>云端</td>
+    <td>文本 + 趋势摘要 → JSON <code>{replyText, riskLevel, confidence, reason}</code></td>
+  </tr>
+  <tr>
+    <td>言行矛盾（调试台）</td><td>deepseek-flash（temp 0.2）</td><td>云端</td>
+    <td>文本 + 文本等级 + 表情 + 语音 → <code>{contradictory, explanation}</code></td>
+  </tr>
+  <tr>
+    <td>安全兜底</td><td>关键词规则引擎</td><td>本地</td>
+    <td>文本 → 等级 + 模板话术 + confidence 0.5 / 0.9</td>
+  </tr>
+  <tr>
+    <td>TTS + 口型</td><td>魔珐星云 XmovAvatar</td><td>端 + 云</td>
+    <td>replyText → 语音 + 口型动画</td>
+  </tr>
+</table>
+
+<h2>五、数值走查：把链路跑一遍</h2>
+<p>假设用户此前 3 轮都是 3 级，本轮说：「今天又被客户投诉了，气死我了，这单还白跑。」语音情绪 <code>sad 0.72</code>。</p>
+
+<div class="walk">
+  <div class="w"><div class="i">①</div><div class="c">FunASR 转写</div><div class="r">文本</div></div>
+  <div class="w"><div class="i">②</div><div class="c">emotion2vec+：distress = 0.72 ≥ 0.6 → 高痛苦</div><div class="r">命中</div></div>
+  <div class="w"><div class="i">③</div><div class="c">get_trend(10) 读记忆 → 注入 Prompt</div><div class="r">10 条摘要</div></div>
+  <div class="w"><div class="i">④</div><div class="c">deepseek-flash 判 3 级，confidence 0.82（≥0.8 直接采信）</div><div class="r">3</div></div>
+  <div class="w up"><div class="i">⑤</div><div class="c">矛盾提升：3 级 + 语音高痛苦</div><div class="r">3 → 2</div></div>
+  <div class="w up"><div class="i">⑥</div><div class="c">趋势提升：2 级且近 3 条均 ≤3 → max(2, 1)</div><div class="r">2（封底）</div></div>
+  <div class="w"><div class="i">⑦</div><div class="c">build_intervention(2) → hotline（12356）</div><div class="r">hotline</div></div>
+  <div class="w"><div class="i">⑧</div><div class="c">写记忆：risk_level=2，emotion="崩溃绝望"</div><div class="r">★ 正反馈</div></div>
+  <div class="w"><div class="i">⑨</div><div class="c">新建 RiskAlert(level=2, status=pending)</div><div class="r">二级工单</div></div>
+  <div class="w"><div class="i">⑩</div><div class="c">base_level=3 → RiskEvaluation(level=2, trajectory="[3,3,2]", escalated=true)</div><div class="r">留痕</div></div>
+  <div class="w"><div class="i">⑪</div><div class="c">前端：口播共情 → 1.5s 后热线卡（digitalHumanAction="worry"）</div><div class="r">UI</div></div>
+</div>
+
+<div class="warn">
+<b>第 ⑧ 步存在正反馈：</b>本轮被提升到 2 级，写回记忆的也是 2 级；下一轮 <code>is_worsening</code> 读到 <code>[3,3,2]</code>（都 ≤3）仍会命中，等级会稳定停在 2 级，直到出现一次 4 级才解除。这是"宁可多提醒"的保守偏置，演示时需要主动说明，否则评委会问"为什么一直报橙"。
+</div>
+
+<h2>六、现状问题与答辩口径</h2>
+
+<h3>6.1 会影响演示效果的问题</h3>
+<table>
+  <tr><th style="width:34px">#</th><th style="width:250px">问题</th><th>建议</th></tr>
+  <tr>
+    <td>1</td><td><b>LLM 无多轮上下文</b><br>messages 只有人设 + 趋势摘要 + 本轮</td>
+    <td>加 <code>history</code> 参数，取本会话最近 6 条 message 拼进 messages</td>
+  </tr>
+  <tr>
+    <td>2</td><td><b>人设 prompt 未注入</b><br><code>DigitalHuman.prompt</code> 存了但没人读</td>
+    <td><code>generate_reply</code> 增加 <code>persona</code> 参数，传入当前数字人 prompt</td>
+  </tr>
+  <tr>
+    <td>3</td><td><b>主链路表情链路未生效</b><br>隐藏相机在拍照，但 H5 只发 <code>inputTypes:["audio"]</code>，<code>_latestFacePath</code> 只在 cover-view 兜底路径被消费</td>
+    <td>H5 抓帧随音频一起上传，或通过独立接口回传帧</td>
+  </tr>
+  <tr>
+    <td>4</td><td><b>空记忆条目</b><br>语音转写为空时仍写 <code>memories.content=''</code>（库中已有 id 57-60 等实例）</td>
+    <td><code>add()</code> 前判空直接 return</td>
+  </tr>
+  <tr>
+    <td>5</td><td><b>识别失败静默</b><br>ASR 异常只 <code>logger.warning</code>，用户侧无感知</td>
+    <td>返回体加 <code>asrFailed</code>，前端提示"没听清，再说一次"</td>
+  </tr>
+</table>
+
+<h3>6.2 与 PRD 口径不一致（必须统一说法）</h3>
+<table>
+  <tr><th style="width:130px">维度</th><th style="width:250px">PRD 写的</th><th>代码实际 / 建议口径</th></tr>
+  <tr>
+    <td>记忆系统</td><td>Mem0 + Chroma/FAISS 向量库，语义检索</td>
+    <td>SQLite 时序快照（最近 10 条）。<b>口径</b>：provider 已抽象，当前为关系型实现，向量库为阶段四替换项——不要讲成"语义检索已实现"</td>
+  </tr>
+  <tr>
+    <td>大模型</td><td>EmoLLM 本地部署</td>
+    <td>deepseek-flash 云端 API。<b>口径</b>：云端通用模型过渡通道，EmoLLM 接入只改 provider</td>
+  </tr>
+  <tr>
+    <td>调试台判定链</td><td>—</td>
+    <td><code>_judgment_chain</code> 的趋势提升<b>没有 2 级封底</b>（可能 3→2→1），与小程序链路不一致。建议抽成同一函数</td>
+  </tr>
+  <tr>
+    <td>digitalHumanAction</td><td>驱动数字人动作</td>
+    <td>后端返回 <code>emergency/worry/comfort/listen</code>，但 H5 只用 <code>intervention.type</code> 决定 UI，该字段未被消费</td>
+  </tr>
+</table>
+
+<h3>6.3 可选增强</h3>
+<ul>
+  <li><b>记忆向量化</b>：content 过 embedding 存 Chroma，检索改成"近 10 条 + 语义 top 3"，才对得上 Mem0 语义。</li>
+  <li><b>记忆分层</b>：会话级摘要（每 5 轮压缩）+ 用户级画像（职业 / 作息 / 高频触发场景），避免 10 条截断丢失长期信息。</li>
+  <li><b>首字延迟优化</b>：LLM 流式返回 + 数字人分段 speak，把"松手 → 开口"从 3~6s 压到 1.5s 内。</li>
+  <li><b>模型预热</b>：<code>_preheat_models()</code> 已在启动时跑，但 FunASR 首次推理仍慢，可加空音频预热。</li>
+</ul>
+
+<h2>七、改动索引</h2>
+<table>
+  <tr><th style="width:330px">想改什么</th><th>改哪里</th></tr>
+  <tr><td>人设话术 / 分级标准 / JSON 格式</td><td><code>backend/services/llm_provider.py</code> → <code>SYSTEM_PROMPT</code></td></tr>
+  <tr><td>关键词兜底规则与话术模板</td><td><code>llm_provider.py</code> → <code>FALLBACK_RULES</code> / <code>FALLBACK_REPLIES</code></td></tr>
+  <tr><td>记忆写入内容 / 检索条数 / 趋势阈值</td><td><code>backend/services/memory_service.py</code></td></tr>
+  <tr><td>一轮对话的编排顺序 / 提升规则 / 预警</td><td><code>backend/routers/miniprogram.py</code> → <code>chat_completions</code></td></tr>
+  <tr><td>风险等级 → 干预动作映射</td><td><code>llm_provider.py</code> → <code>build_intervention</code> / <code>ACTION_MAP</code></td></tr>
+  <tr><td>H5 界面 / 录音 / 字幕 / 热线卡</td><td><code>backend/digital_human/index.html</code></td></tr>
+  <tr><td>小程序进入流程 / 会话 / 兜底录音</td><td><code>miniprogram/pages/talk/talk.js</code></td></tr>
+  <tr><td>数字人密钥 / LLM 地址 / 置信度阈值</td><td><code>backend/config.py</code> + <code>backend/.env</code></td></tr>
+</table>
+
+<div class="foot">
+  本文档基于当前代码实际行为整理，所有结论均可在标注的文件行号处核对。<br>
+  配套文本版：<code>流程说明_记忆系统与数字人对话.md</code>
+</div>
+
+</div>
+</body>
+</html>

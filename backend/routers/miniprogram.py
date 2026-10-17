@@ -1,9 +1,12 @@
 """小程序端接口 —— PRD 8.2 全部 17 个接口"""
+import asyncio
 import json
 import logging
 import os
 import uuid
 from datetime import datetime
+
+import httpx
 
 from fastapi import APIRouter, Depends, UploadFile, File
 from sqlalchemy.orm import Session
@@ -11,12 +14,15 @@ from sqlalchemy.orm import Session
 from auth import create_token, get_current_user
 from common import ok, BizError
 from config import UPLOAD_DIR, WX_LOGIN_MOCK, WX_APPID, WX_SECRET
-from database import get_db
+from config import LLM_BASE_URL, LLM_API_KEY, LLM_MODEL
+from database import get_db, SessionLocal
 from models.entities import (
     User, DigitalHuman, Conversation, Message, RiskAlert, AlertFollowUp,
     RiskEvaluation, Hotline, SelfHelp,
 )
-from services.llm_provider import generate_reply, build_intervention, ACTION_MAP
+from services.llm_provider import (generate_reply, build_intervention, ACTION_MAP,
+                                   extract_memorable, summarize_session)
+from services.keyword_engine import match_keywords, matched_summary
 from services import memory_service
 from services import audio_service, face_service
 
@@ -153,16 +159,18 @@ async def chat_completions(body: dict, user: User = Depends(get_current_user), d
     image_url = body.get("imageUrl", "")
 
     # 0. 多模态特征提取（PRD 9.2 步骤 2：本地 FunASR + emotion2vec+ / Py-Feat）
+    # 注意：FunASR/Py-Feat 是同步 CPU 重活，首次调用还要加载模型（几十秒）。
+    # 直接在这里调用会把事件循环整个堵死（表现为 /docs 都超时），必须丢线程池。
     audio_emotion = None   # {labels, distress_score}
     face_emotion = None
     if "audio" in input_types and audio_url:
         try:
             audio_path = os.path.join(UPLOAD_DIR, audio_url.replace("/uploads/", ""))
             if os.path.exists(audio_path):
-                asr_out = audio_service.transcribe(audio_path)
+                asr_out = await audio_service.transcribe_async(audio_path)
                 if not text:  # ASR 转写填充 text（V6.2：含 audio 时由后端自动填充）
                     text = asr_out["text"]
-                audio_emotion = audio_service.analyze_emotion(audio_path)
+                audio_emotion = await audio_service.analyze_emotion_async(audio_path)
                 logger.info("【语音分析】ASR=%r | 情感=%s | distress=%.2f",
                             asr_out["text"][:30],
                             audio_emotion["labels"][:3] if audio_emotion["labels"] else [],
@@ -173,7 +181,7 @@ async def chat_completions(body: dict, user: User = Depends(get_current_user), d
         try:
             image_path = os.path.join(UPLOAD_DIR, image_url.replace("/uploads/", ""))
             if os.path.exists(image_path):
-                face_emotion = face_service.analyze_face(image_path)
+                face_emotion = await face_service.analyze_face_async(image_path)
                 logger.info("【表情分析】检出人脸=%s | 情绪=%s | distress=%.2f",
                             face_emotion["faces_detected"],
                             face_emotion["labels"][:3] if face_emotion["labels"] else [],
@@ -192,9 +200,39 @@ async def chat_completions(body: dict, user: User = Depends(get_current_user), d
     if modality_ctx:
         trend_summary = (trend_summary + "；" if trend_summary else "") + "；".join(modality_ctx)
 
+    # 1.5 关键词规则先行（赛题文档词库）——一级词命中将在 LLM 结果后一票否决
+    kw = match_keywords(text)
+
+    # 1.6 多轮上下文：本会话最近 6 条（含 AI 回复，让模型接住自己起的话题）
+    hist_rows = (
+        db.query(Message)
+        .filter(Message.conversation_id == conv_id)
+        .order_by(Message.id.desc())
+        .limit(6)
+        .all()
+    )
+    history = [(m.role, m.content) for m in reversed(hist_rows) if m.content]
+
+    # 数字人人设注入（小满 / 知远话术差异）
+    persona = ""
+    if user.digital_human_id:
+        dh = db.query(DigitalHuman).filter(DigitalHuman.id == user.digital_human_id).first()
+        persona = (dh.prompt or "") if dh else ""
+
     # 2. LLM 生成回复 + 风险推理（趋势摘要拼进 Prompt，模型可感知"嘴上没事、实际恶化"）
-    result = await generate_reply(text, context_summary=trend_summary)
+    result = await generate_reply(text, context_summary=trend_summary,
+                                  history=history, persona=persona)
     base_level = result["riskLevel"]  # 模型原始评级（矛盾/趋势提升前的基准，供三级评估留痕）
+
+    # 2.5 等级融合（已评审架构）：一级词一票否决 > 关键词保底 > 模型结论
+    if kw["force_level"] == 1 or result.get("semanticEquivalent"):
+        result["riskLevel"] = 1
+        result["reason"] = (result.get("reason") or "") + "；一级关键词一票否决"
+    elif kw["floor_level"] and result["riskLevel"] > kw["floor_level"]:
+        result["riskLevel"] = kw["floor_level"]
+        result["reason"] = (result.get("reason") or "") + f"；关键词保底{kw['floor_level']}级"
+    if kw["matched"]:
+        result["reason"] = (result.get("reason") or "") + f"；命中：{matched_summary(kw['matched'])}"
 
     # 3. 矛盾提升（PRD 9.2 步骤 5 + V6.2 单次请求内判定）：
     #    文本低风险（3/4级）但表情或语音极高痛苦 → 自动提升一级（riskLevel 数值减 1）
@@ -237,8 +275,31 @@ async def chat_completions(body: dict, user: User = Depends(get_current_user), d
         conv.title = text[:16]
     db.commit()
 
-    # 5. 对话后：写入记忆（情绪快照，供下次趋势判断）
-    memory_service.add(db, user.id, conv_id, text, result["riskLevel"])
+    # 5. 对话后：写入记忆
+    #    5a. 情绪快照（同步，维持趋势提升机制：is_worsening 依赖每轮连续的 risk_level 记录）
+    importance = "high" if result["riskLevel"] <= 2 else ("mid" if result["riskLevel"] == 3 else "low")
+    memory_service.add(db, user.id, conv_id, text, result["riskLevel"],
+                       kind="emotion", importance=importance)
+    #    5b. 事实抽取（异步后台任务：LLM 判断是否值得长期记住，如"母亲住院"）
+    #        用独立 DB session——请求的 session 在响应后关闭
+    _uid, _cid = user.id, conv_id
+    _user_text, _ai_text = text, result["replyText"]
+
+    async def _extract_memory_task():
+        try:
+            r = await extract_memorable(_user_text, _ai_text)
+            if r.get("memorable"):
+                db2 = SessionLocal()
+                try:
+                    memory_service.add(db2, _uid, _cid, r["content"], 4,
+                                       kind="fact", importance=r["importance"])
+                    logger.info("记忆抽取: 用户%s %s", _uid, r["content"])
+                finally:
+                    db2.close()
+        except Exception as e:
+            logger.warning("记忆抽取任务异常: %s", e)
+
+    asyncio.create_task(_extract_memory_task())
 
     # 6. 预警处置链路（赛题：系统应持续关注对话走向，如用户表达进一步恶化，则升级为一级处置）
     if result["riskLevel"] == 1:
@@ -373,6 +434,64 @@ def delete_conversation(conv_id: str, user: User = Depends(get_current_user), db
     return ok({"deleted": conv_id})
 
 
+# ---------- 常驻倾诉页：会话结束（LLM 小结 → 写入记忆 → 归档） ----------
+# POST /conversations/{id}/end
+@router.post("/conversations/{conv_id}/end")
+async def end_conversation(conv_id: str, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """结束一段倾诉：生成本次小结 → 写入长期记忆（kind=summary）→ 会话归档。
+
+    小结由 LLM 依据本会话全部消息生成（2~3 句第三人称温和回顾）。
+    幂等：已结束的会话重复调用直接返回已存小结。
+    """
+    conv = db.query(Conversation).filter(
+        Conversation.id == conv_id, Conversation.user_id == user.id).first()
+    if not conv:
+        raise BizError(404, "会话不存在")
+    if getattr(conv, "status", "active") == "ended":
+        return ok({"summary": conv.summary or "", "alreadyEnded": True})
+
+    msgs = db.query(Message).filter(Message.conversation_id == conv_id).order_by(Message.id).all()
+    transcript = "\n".join(
+        f"{'用户' if (m.role == 'user') else '疏导师'}：{m.content}"
+        for m in msgs if m.content
+    )
+    summary = await summarize_session(transcript)
+
+    # 小结写入长期记忆（Mem0 同步写入），情绪等级取本次会话最高风险（缺省 4 正常）
+    levels = [m.risk_level for m in msgs if getattr(m, "risk_level", None)]
+    peak_level = min(levels) if levels else 4  # 1 级最危险，取最小值
+    if summary:
+        memory_service.add(db, user.id, conv_id, "[倾诉小结] " + summary,
+                           risk_level=peak_level, kind="summary", importance="mid")
+
+    conv.status = "ended"
+    conv.summary = (summary or "")[:256]
+    conv.ended_at = datetime.utcnow()
+    db.commit()
+    return ok({"summary": summary, "ended": True})
+
+
+# ---------- 常驻倾诉页：小程序 → H5 指令下发（情绪/话题上下文） ----------
+# web-view 已加载后无法改 URL 传参（会整页重载），用「写入-消费」通道中转；
+# 按用户维度存取（H5 侧 cid 会被结束/重建，按会话维度会丢指令）；
+# 存进程内存即可：指令是易失的一次性提示，重启丢失可接受
+_UI_DIRECTIVES: dict = {}
+
+
+@router.post("/mp/ui-directive")
+def push_ui_directive(body: dict, user: User = Depends(get_current_user)):
+    payload = body.get("payload") or {}
+    if payload:
+        _UI_DIRECTIVES[user.id] = payload
+    return ok(None)
+
+
+@router.get("/mp/ui-directive")
+def pop_ui_directive(user: User = Depends(get_current_user)):
+    payload = _UI_DIRECTIVES.pop(user.id, None)
+    return ok(payload)
+
+
 # ---------- 热线：GET /hotlines ----------
 @router.get("/hotlines")
 def hotlines(db: Session = Depends(get_db)):
@@ -410,8 +529,73 @@ def digital_human_view(user: User = Depends(get_current_user), db: Session = Dep
         return ok({"configured": False, "url": ""})
     base = os.getenv("PUBLIC_BASE_URL", "http://192.168.110.220:8000")
     name = "xiaoman" if dh_id == "dh_01" else "zhiyuan"
-    url = f"{base}/digital-human/index.html?appid={cred[0]}&secret={quote(cred[1])}&name={name}&v=3"
+    # v 参数用于破 web-view 缓存：改了 index.html 就 +1
+    url = f"{base}/digital-human/index.html?appid={cred[0]}&secret={quote(cred[1])}&name={name}&v=9"
     return ok({"configured": True, "url": url, "digitalHumanId": dh_id})
+
+
+# ---------- 记忆问候：GET /greeting（数字人开场白，读记忆定制） ----------
+GREET_DEFAULT = "准备好了就开口，我一直在听。"
+
+
+@router.get("/greeting")
+async def greeting(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """读取用户记忆生成个性化开场问候。
+
+    - 有 kind=fact 记忆 → DeepSeek 生成一句自然带出近况的问候（3s 超时回退默认文案）
+    - 无记忆 → 返回默认文案
+    - 措辞软化：prompt 要求概括性关怀，不逐字引用高危原话
+    """
+    facts = memory_service.get_recent_facts(db, user.id, n=3)
+    if not facts:
+        return ok({"greeting": GREET_DEFAULT, "hasMemory": False, "basedOn": []})
+
+    ctx = "；".join(f.content for f in facts)
+    persona = ""
+    if user.digital_human_id:
+        dh = db.query(DigitalHuman).filter(DigitalHuman.id == user.digital_human_id).first()
+        persona = (dh.name or "") if dh else ""
+
+    greet_prompt = f"""你是数字心理疏导师「{persona or '小满'}」。用户上次倾诉时提到过：
+{ctx}
+请生成一句开场问候（不超过 30 字），自然带出其中值得关心的近况（如家人健康、工作情况），口语化、温和。
+要求：
+- 用概括性关怀表达，不要逐字引用原话，绝不出现"遗书""自杀""轻生"等高危词汇
+- 不要说教，不要提"风险""预警"
+输出 JSON（不要代码块）：{{"greeting": "..."}}"""
+
+    greeting_text = GREET_DEFAULT
+    try:
+        # DeepSeek 是推理模型：思考+生成偶发超过 5s，超时太紧会频繁回退默认文案
+        async with httpx.AsyncClient(timeout=8) as client:
+            resp = await client.post(
+                LLM_BASE_URL.rstrip("/") + "/chat/completions",
+                headers={"Authorization": "Bearer " + LLM_API_KEY},
+                json={"model": LLM_MODEL, "temperature": 0.7, "max_tokens": 300,
+                      "messages": [{"role": "user", "content": greet_prompt}]},
+            )
+            resp.raise_for_status()
+            parsed = _extract_json_safe(resp.json()["choices"][0]["message"].get("content") or "")
+            if parsed.get("greeting"):
+                greeting_text = str(parsed["greeting"]).strip()[:60]
+    except Exception as e:
+        logger.warning("问候生成失败，回退默认文案：%s: %s", type(e).__name__, e)
+
+    return ok({
+        "greeting": greeting_text,
+        "hasMemory": True,
+        "basedOn": [f.content for f in facts],
+    })
+
+
+def _extract_json_safe(raw: str) -> dict:
+    """greeting 专用宽松解析：取第一个 {...}，失败返回空 dict"""
+    import re as _re
+    try:
+        m = _re.search(r"\{.*\}", raw or "", _re.S)
+        return json.loads(m.group(0)) if m else {}
+    except Exception:
+        return {}
 
 
 # ---------- 预警上报：POST /risk-alerts ----------

@@ -1,43 +1,5 @@
 <template>
   <div class="page">
-    <!-- 工具条：连接状态 + 场景选择 -->
-    <el-card shadow="never" class="toolbar-card">
-      <div class="toolbar">
-        <div class="tb-left">
-          <span class="conn-dot" :class="wsState" />
-          <span class="conn-text">{{ connText }}</span>
-          <el-tag size="small" :type="mode === 'mock' ? 'warning' : 'success'" effect="plain">
-            {{ mode === 'mock' ? '模拟推流（预设剧本本地演示）' : '实时通道 · 本机摄像头/麦克风采集' }}
-          </el-tag>
-          <template v-if="session">
-            <el-divider direction="vertical" />
-            <span class="muted">
-              会话 {{ session.sessionId }} · 用户 {{ session.userId }}
-              {{ session.ended ? '（已结束）' : '（倾诉中）' }}
-            </span>
-          </template>
-        </div>
-        <div class="tb-right">
-          <!-- Mock 模式：保留预设剧本演示 -->
-          <template v-if="mode === 'mock'">
-            <el-select v-model="selectedScript" style="width: 250px" :disabled="wsState !== 'idle'" placeholder="选择演示场景">
-              <el-option v-for="s in DEBUG_SCRIPTS" :key="s.id" :value="s.id" :label="s.name" />
-            </el-select>
-            <el-button type="primary" :loading="wsState === 'connecting'" :disabled="wsState !== 'idle'" @click="startStream">
-              开始推流
-            </el-button>
-            <el-button :disabled="wsState === 'idle'" @click="stopStream">断开</el-button>
-          </template>
-          <!-- 真实模式：本机采集，不再依赖小程序推流 -->
-          <template v-else>
-            <el-button type="primary" :loading="starting" :disabled="capturing" @click="startCapture">开启摄像头/麦克风</el-button>
-            <el-button type="danger" plain :disabled="!capturing" @click="stopCapture">结束调试</el-button>
-          </template>
-        </div>
-      </div>
-      <div v-if="mode === 'mock'" class="script-desc muted">{{ currentScript?.desc }}</div>
-    </el-card>
-
     <el-row :gutter="16" class="main-row">
       <!-- 区域一：实时多模态流 -->
       <el-col :span="14">
@@ -114,13 +76,13 @@
             </el-col>
           </el-row>
 
-          <!-- 语音转写流 -->
+          <!-- 语音转写流（倒序：最新一条在最上方） -->
           <div class="transcript-head">
             <span>语音转写流（FunASR）</span>
-            <span class="muted small">isFinal=完整句 · 数字人回应按最终等级选用话术</span>
+            <span class="muted small">按时间倒序 · 最新在上 · isFinal=完整句 · 数字人回应按最终等级选用话术</span>
           </div>
           <el-scrollbar max-height="220px" class="transcript-scroll">
-            <div v-for="t in transcript" :key="t.id" class="t-row" :class="[t.role, { partial: !t.isFinal }]">
+            <div v-for="t in transcriptDesc" :key="t.id" class="t-row" :class="[t.role, { partial: !t.isFinal }]">
               <span class="t-time">{{ t.time }}</span>
               <span class="t-text">{{ t.text }}</span>
               <el-tag v-if="t.role === 'user' && t.level" size="small" :type="RISK_LEVELS[t.level].type" effect="plain">
@@ -138,6 +100,43 @@
 
       <!-- 区域二：矛盾分析面板 -->
       <el-col :span="10">
+        <!-- 工具条：连接状态 + 场景选择（置于区域二上方） -->
+        <el-card shadow="never" class="toolbar-card">
+          <div class="toolbar">
+            <div class="tb-left">
+              <span class="conn-dot" :class="wsState" />
+              <span class="conn-text">{{ connText }}</span>
+              <el-tag size="small" :type="mode === 'mock' ? 'warning' : 'success'" effect="plain">
+                {{ mode === 'mock' ? '模拟推流（预设剧本本地演示）' : '实时通道 · 本机摄像头/麦克风采集' }}
+              </el-tag>
+              <template v-if="session">
+                <span class="muted session-meta">
+                  会话 {{ session.sessionId }} · 用户 {{ session.userId }}
+                  {{ session.ended ? '（已结束）' : '（倾诉中）' }}
+                </span>
+              </template>
+            </div>
+            <div class="tb-right">
+              <!-- Mock 模式：保留预设剧本演示 -->
+              <template v-if="mode === 'mock'">
+                <el-select v-model="selectedScript" style="flex: 1" :disabled="wsState !== 'idle'" placeholder="选择演示场景">
+                  <el-option v-for="s in DEBUG_SCRIPTS" :key="s.id" :value="s.id" :label="s.name" />
+                </el-select>
+                <el-button type="primary" :loading="wsState === 'connecting'" :disabled="wsState !== 'idle'" @click="startStream">
+                  开始推流
+                </el-button>
+                <el-button :disabled="wsState === 'idle'" @click="stopStream">断开</el-button>
+              </template>
+              <!-- 真实模式：本机采集，不再依赖小程序推流 -->
+              <template v-else>
+                <el-button type="primary" :loading="starting" :disabled="capturing" @click="startCapture">开启摄像头/麦克风</el-button>
+                <el-button type="danger" plain :disabled="!capturing" @click="stopCapture">结束调试</el-button>
+              </template>
+            </div>
+          </div>
+          <div v-if="mode === 'mock'" class="script-desc muted">{{ currentScript?.desc }}</div>
+        </el-card>
+
         <el-card shadow="never">
           <template #header>
             <div class="card-head">
@@ -264,6 +263,11 @@ const connText = computed(
 )
 const latest = computed(() => analyses.value[0] || null)
 
+/* 转写流展示按时间倒序（最新在上）。
+   注意：数据仍按正序维护，partial 中间结果的 lastPartialIdx 索引逻辑不受影响，
+   只在这里反序，避免改动推流替换逻辑。 */
+const transcriptDesc = computed(() => transcript.value.slice().reverse())
+
 function pct(v) {
   return `${Math.round(v * 100)}%`
 }
@@ -365,10 +369,11 @@ let sessionId = ''
 
 const capture = createLocalCapture({
   onFrame: (frame) => {
-    if (sessionId) request.post('/mp/debug/stream/frame', { sessionId, frame }).catch(() => {})
+    // silent：推流帧是后台高频请求，失败不弹提示（否则后端忙时会刷屏）
+    if (sessionId) request.post('/mp/debug/stream/frame', { sessionId, frame }, { silent: true }).catch(() => {})
   },
   onAudioChunk: (audio) => {
-    if (sessionId) request.post('/mp/debug/stream/audio-base64', { sessionId, audio }, { timeout: 60000 }).catch(() => {})
+    if (sessionId) request.post('/mp/debug/stream/audio-base64', { sessionId, audio }, { timeout: 60000, silent: true }).catch(() => {})
   }
 })
 
@@ -414,21 +419,28 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
+/* 工具条现置于区域二上方：窄列内纵向堆叠，避免挤成两行 */
+.toolbar-card {
+  margin-bottom: 16px;
+}
 .toolbar-card :deep(.el-card__body) {
   padding: 14px 20px;
 }
 .toolbar {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  flex-wrap: wrap;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 10px;
 }
 .tb-left {
   display: flex;
   align-items: center;
   gap: 10px;
   flex-wrap: wrap;
+}
+.session-meta {
+  font-size: 12px;
+  line-height: 1.5;
 }
 .tb-right {
   display: flex;
@@ -464,7 +476,7 @@ onUnmounted(() => {
   font-size: 12px;
 }
 .main-row {
-  margin-top: 16px;
+  margin-top: 0;
 }
 .card-head {
   display: flex;

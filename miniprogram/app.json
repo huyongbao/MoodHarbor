@@ -35,6 +35,7 @@
     "backgroundColor": "#ffffff",
     "list": [
       { "pagePath": "pages/home/home", "text": "歇会儿" },
+      { "pagePath": "pages/talk/talk", "text": "倾诉" },
       { "pagePath": "pages/history/history", "text": "倾诉记录" },
       { "pagePath": "pages/profile/profile", "text": "我的" }
     ]

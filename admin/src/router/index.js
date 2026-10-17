@@ -98,7 +98,7 @@ const router = createRouter({
 let authSynced = false
 
 router.beforeEach(async (to) => {
-  document.title = to.meta.title ? `${to.meta.title} · 情绪树洞管理后台` : '情绪树洞管理后台'
+  document.title = to.meta.title ? `${to.meta.title} · 歇会儿管理后台` : '歇会儿管理后台'
   const store = useUserStore()
 
   if (to.meta.public) {

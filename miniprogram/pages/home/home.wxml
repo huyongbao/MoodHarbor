@@ -24,7 +24,8 @@
       wx:key="*this"
       class="topic-bubble bubble-{{index}}"
       hover-class="pressed"
-      bindtap="goTalk"
+      data-topic="{{item}}"
+      bindtap="onTopicTap"
     >{{item}}</view>
     <view class="hero-caption"><text class="cap-line" />这一站，为自己停一下<text class="cap-line" /></view>
   </view>

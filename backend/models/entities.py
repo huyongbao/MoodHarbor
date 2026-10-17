@@ -56,6 +56,10 @@ class Conversation(Base):
     user_id = Column(Integer, ForeignKey("users.id"), index=True)
     title = Column(String(128), default="新的倾诉")
     created_at = Column(DateTime, default=now)
+    # 常驻倾诉页（tab 化）后的会话生命周期：active / ended
+    status = Column(String(16), default="active")
+    summary = Column(String(256), default="")   # 结束时的 LLM 倾诉小结
+    ended_at = Column(DateTime, nullable=True)
 
 
 class Message(Base):

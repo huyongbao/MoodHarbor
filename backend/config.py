@@ -32,10 +32,12 @@ WX_LOGIN_MOCK = os.getenv("WX_LOGIN_MOCK", "true").lower() == "true"
 WX_APPID = os.getenv("WX_APPID", "wx96266f6a77bb3c94")
 WX_SECRET = os.getenv("WX_SECRET", "")
 
-# ---- LLM（云端过渡通道，后续替换 EmoLLM，业务代码零改动）----
-LLM_BASE_URL = os.getenv("LLM_BASE_URL", "http://121.43.195.133:28479/v1")
+# ---- LLM（DeepSeek 官方 API，后续可替换 EmoLLM，业务代码零改动）----
+# deepseek-flash：V4.1-Flash，支持图文输入，延迟约 1.2s（数字人对话默认）
+# deepseek-v4-pro：V4-Pro，纯文本，延迟约 4s，风险判级更谨慎
+LLM_BASE_URL = os.getenv("LLM_BASE_URL", "https://api.deepseek.com/v1")
 LLM_API_KEY = os.getenv("LLM_API_KEY", "")  # 从环境变量读取，不进代码库
-LLM_MODEL = os.getenv("LLM_MODEL", "glm-5.3")
+LLM_MODEL = os.getenv("LLM_MODEL", "deepseek-flash")
 
 # ---- 魔珐星云 3D 数字人（web-view H5 宿主页，双数字人）----
 # 小满（女，dh_01）

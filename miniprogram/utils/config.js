@@ -8,7 +8,8 @@
 //   - 真机预览/调试：临时填自己电脑的局域网 IP（手机与电脑需同一 Wi-Fi），
 //     调试完改回 "" 再提交，避免把个人 IP 带进仓库
 const USE_MOCK = false;
-const LAN_IP = "";
+// 真机调试中：填本机局域网 IP（手机与电脑同一 Wi-Fi），调试完改回 "" 再提交
+const LAN_IP = "192.168.110.220";
 const HOST = LAN_IP || "127.0.0.1";
 const BASE_URL = "http://" + HOST + ":8000/api/v1";
 

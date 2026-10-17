@@ -47,41 +47,23 @@ Page({
     api.getSelfHelp().then((res) => this.setData({ selfHelp: res.data || [] }));
   },
 
+  // 「我想聊聊」→ 倾诉页已 tab 化常驻（数字人 SDK/模型只加载一次）：
+  // switchTab 切换，页面实例保留，二次进入秒开。
+  // 情绪/话题上下文经 globalData.talkContext 带入（tab 页不能带 URL 参数），
+  // 由 talk 页 onShow 消费并通过指令接口下发给 H5 数字人。
   goTalk() {
-    if (this._routing) return;
-    this._routing = true;
-    const done = () => { this._routing = false; };
-    // PRD：进入倾诉先创建会话拿 conversationId
-    const enter = () => {
-      api
-        .createConversation()
-        .then((res) => {
-          app.globalData.conversationId = res.data.conversationId;
-          wx.navigateTo({ url: "/pages/talk/talk" });
-        })
-        .finally(done);
+    const app = getApp();
+    app.globalData.talkContext = {
+      topic: this._selectedTopic || "",
+      at: Date.now(),
     };
-    // 新用户首次需完善：选聊天伙伴 → 填资料，之后由 profile-setup 直接进 talk
-    const goSetup = () => {
-      done();
-      wx.navigateTo({ url: "/pages/companion-select/companion-select" });
-    };
-    const isReady = (s) => !!(s && s.digitalHumanSelected && s.profileCompleted);
+    wx.switchTab({ url: "/pages/talk/talk" });
+  },
 
-    const cached = this.data.initStatus;
-    if (cached) {
-      isReady(cached) ? enter() : goSetup();
-      return;
-    }
-    // 冷启动预热未完成：现场拉一次初始化状态，失败兜底直接进聊天
-    api
-      .ensureLogin()
-      .then(() => api.getInitStatus())
-      .then((res) => {
-        this.setData({ initStatus: res.data || null });
-        isReady(res.data) ? enter() : goSetup();
-      })
-      .catch(enter);
+  // 话题气泡：先记下所选话题再进倾诉页
+  onTopicTap(e) {
+    this._selectedTopic = (e.currentTarget && e.currentTarget.dataset.topic) || "";
+    this.goTalk();
   },
 
   goBreath() {

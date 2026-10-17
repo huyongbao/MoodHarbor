@@ -194,7 +194,9 @@ async def stream_frame(body: dict, user: User = Depends(_get_actor)):
                 except OSError:
                     pass
 
-        threading.Thread(target=_analyze_async, daemon=True).start()
+        # 固定交给 FACE_EXECUTOR（单线程）：Py-Feat 原生对象跨线程调用会崩
+        from services.infer_lock import FACE_EXECUTOR
+        FACE_EXECUTOR.submit(_analyze_async)
     return ok(None)
 
 
@@ -204,18 +206,34 @@ async def stream_frame(body: dict, user: User = Depends(_get_actor)):
 @router.post("/mp/debug/stream/audio-base64")
 async def stream_audio_b64(body: dict, user: User = Depends(_get_actor), db: Session = Depends(get_db)):
     sess = _get_session(body.get("sessionId", ""))
-    audio_b64 = body.get("audio", "")
+    # 前端传的是 dataURL（data:audio/wav;base64,xxx），必须剥掉前缀再解码，
+    # 否则 b64decode 会因非法字符/长度不对直接抛错，表现为卡片一直是"—"
+    audio_b64 = (body.get("audio") or "").split(",")[-1]
     if not sess or not audio_b64:
         return ok(None)
 
+    # 背压：上一段还在识别/判定时丢弃本段（前端 5s 一段，正常不会触发；
+    # 一旦推理变慢必须丢帧，否则任务堆积会把 CPU 抢光、整个后端 15s 超时）
+    if getattr(stream_audio_b64, "_busy", False):
+        logger.info("上一段音频仍在分析，丢弃本段")
+        return ok(None)
+    stream_audio_b64._busy = True
+    try:
+        return await _analyze_audio_segment(body, sess, user, db, audio_b64)
+    finally:
+        stream_audio_b64._busy = False
+
+
+async def _analyze_audio_segment(body, sess, user, db, audio_b64):
     # base64 → 临时 wav → FunASR + emotion2vec
     import base64 as _b64
     tmp = os.path.join(UPLOAD_DIR, f"dbg_audio_{uuid.uuid4().hex[:8]}.wav")
     try:
         with open(tmp, "wb") as f:
             f.write(_b64.b64decode(audio_b64))
-        asr_out = audio_service.transcribe(tmp)
-        emo_out = audio_service.analyze_emotion(tmp)
+        # 走 audio_service 的专属线程封装（模型跨线程调用会原生崩溃）
+        asr_out = await audio_service.transcribe_async(tmp)
+        emo_out = await audio_service.analyze_emotion_async(tmp)
     except Exception as e:
         logger.warning(f"语音段分析失败: {e}")
         return ok(None)

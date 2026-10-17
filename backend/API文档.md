@@ -64,7 +64,7 @@ POST /chat/completions
 | 3（黄） | `normal` | 必返回 2 条 | 底部自助资源推荐卡 |
 | 4（蓝） | `normal` | — | 正常回应 |
 
-**AI 通道**：当前为云端 LLM 过渡（`LLM_MODEL=glm-5.3`），置信度 < 0.8 时与规则兜底加权取高等级；LLM 不可用时纯规则兜底（绝不漏报）。阶段四替换 EmoLLM 仅改 `services/llm_provider.py`。
+**AI 通道**：当前为云端 LLM 过渡（`LLM_MODEL=deepseek-flash`，DeepSeek 官方 API），置信度 < 0.8 时与规则兜底加权取高等级；LLM 不可用时纯规则兜底（绝不漏报）。阶段四替换 EmoLLM 仅改 `services/llm_provider.py`。
 
 ## 二、管理后台接口（PRD 8.3 最小实现）
 

@@ -17,7 +17,9 @@ from datetime import datetime
 
 class Memory(Base):
     """用户情绪记忆（Mem0 替换前的关系型实现）
-    一条记忆 = 一次对话的快照：内容摘要 + 风险等级 + 情绪标签
+    两类记录：
+      kind="emotion"  每轮情绪快照（维持趋势提升机制，importance 低）
+      kind="fact"     LLM 异步抽取的"值得记住的事实"（母亲住院、工作变动等，供打招呼引用）
     """
     __tablename__ = "memories"
 
@@ -27,6 +29,8 @@ class Memory(Base):
     content = Column(Text, default="")          # 用户输入摘要
     emotion = Column(String(32), default="")    # 情绪标签（由 LLM reason 提取或风险等级映射）
     risk_level = Column(Integer, default=4)
+    kind = Column(String(16), default="emotion")      # emotion | fact | risk
+    importance = Column(String(8), default="mid")     # high | mid | low
     created_at = Column(DateTime, default=datetime.utcnow)
 
 
@@ -39,14 +43,17 @@ EMOTION_LABELS = {
 }
 
 
-def add(db: Session, user_id: int, conversation_id: str, content: str, risk_level: int, emotion: str = ""):
-    """对话后写入记忆"""
+def add(db: Session, user_id: int, conversation_id: str, content: str, risk_level: int,
+        emotion: str = "", kind: str = "emotion", importance: str = "mid"):
+    """写入一条记忆（情绪快照 / 事实抽取结果共用入口）"""
     db.add(Memory(
         user_id=user_id,
         conversation_id=conversation_id,
         content=(content or "")[:120],  # 记忆只存摘要，不存全文（隐私最小化）
         emotion=emotion or EMOTION_LABELS.get(risk_level, ""),
         risk_level=risk_level,
+        kind=kind,
+        importance=importance,
     ))
     db.commit()
 
@@ -83,6 +90,17 @@ def is_worsening(db: Session, user_id: int, window: int = 3, threshold: int = 3)
     if len(items) < window:
         return False
     return all(m.risk_level <= threshold for m in items)
+
+
+def get_recent_facts(db: Session, user_id: int, n: int = 3):
+    """取最近 N 条"事实"记忆（打招呼用）"""
+    return (
+        db.query(Memory)
+        .filter(Memory.user_id == user_id, Memory.kind == "fact")
+        .order_by(Memory.created_at.desc(), Memory.id.desc())
+        .limit(n)
+        .all()
+    )
 
 
 def clear_user(db: Session, user_id: int):

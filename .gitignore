@@ -37,3 +37,6 @@ miniprogram/miniprogram_npm/
 
 # ==== 临时文件 ====
 test_cases.json
+
+# ==== WorkBuddy AI 会话数据（不入库）====
+.workbuddy-ai/
