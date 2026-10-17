@@ -17,6 +17,11 @@ export default defineConfig({
         target: 'http://localhost:8000',
         changeOrigin: true,
         ws: true  // WebSocket 代理（调试台多模态实时推流）
+      },
+      // 自助资源音频：资源库试听播放走后端静态目录
+      '/audio': {
+        target: 'http://localhost:8000',
+        changeOrigin: true
       }
     }
   }

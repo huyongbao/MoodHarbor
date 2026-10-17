@@ -49,6 +49,9 @@ os.makedirs(UPLOAD_DIR, exist_ok=True)
 from fastapi.staticfiles import StaticFiles as _SMS
 app.mount("/digital-human", _SMS(directory=os.path.join(os.path.dirname(__file__), "digital_human"), html=True), name="digital-human")
 
+# 自助资源音频（管理台资源库 + 小程序端播放），url 存相对路径 /audio/xxx.mp3
+app.mount("/audio", _SMS(directory=os.path.join(os.path.dirname(__file__), "audio")), name="self-help-audio")
+
 # 数字人 H5 强制不缓存（web-view 会缓存静态资源，导致改版不生效、探针日志看不到）
 @app.middleware("http")
 async def _dh_no_cache(request, call_next):
@@ -79,11 +82,12 @@ SEED_HOTLINES = [
     {"name": "江苏省大学生 24 小时心理热线", "phone": "025-58255200", "description": "大学生心理援助", "audience": "大学生", "level": "中危", "status": "active"},
 ]
 SEED_SELF_HELP = [
-    {"id": "sh_01", "title": "三分钟呼吸放松", "type": "放松音频", "suitable_levels": "[2, 3]", "duration": "3 分钟", "description": "跟随引导完成一次腹式呼吸练习，快速平复紧绷情绪"},
-    {"id": "sh_02", "title": "下班后放松", "type": "放松音频", "suitable_levels": "[3]", "duration": "7 分钟", "description": "卸下忙碌一天的疲惫，给身体一个缓冲"},
-    {"id": "sh_03", "title": "缓解愤怒", "type": "冥想引导", "suitable_levels": "[3]", "duration": "5 分钟", "description": "给情绪一个缓冲空间，避免冲动决定"},
-    {"id": "sh_04", "title": "安心入睡", "type": "轻音乐", "suitable_levels": "[3]", "duration": "12 分钟", "description": "在温和引导中慢慢休息"},
-    {"id": "sh_05", "title": "楼下走走：五分钟步行的力量", "type": "运动建议", "suitable_levels": "[3]", "duration": "", "description": "忙完这单抽空出去走走，哪怕楼下转一圈"},
+    # 内容对齐原管理台 Mock 资源库（音频位于 backend/audio/，url 为相对路径，由 /audio 静态服务提供）
+    {"id": "sh_01", "title": "三分钟呼吸放松", "type": "放松音频", "suitable_levels": "[2, 3]", "duration": "", "description": "舒缓钢琴轻音乐，适合配合腹式呼吸练习平复紧绷情绪", "url": "/audio/breathing-music.mp3", "status": "active"},
+    {"id": "sh_02", "title": "雨天白噪音", "type": "轻音乐", "suitable_levels": "[3]", "duration": "", "description": "舒缓雨声白噪音，适合午休或睡前循环播放", "url": "/audio/rain-noise.mp3", "status": "active"},
+    {"id": "sh_03", "title": "身体扫描冥想", "type": "轻音乐", "suitable_levels": "[2, 3]", "duration": "", "description": "舒缓轻音乐，适合配合身体扫描练习从头到脚逐步放松，缓解久坐驾驶疲劳", "url": "/audio/body-scan.mp3", "status": "active"},
+    {"id": "sh_04", "title": "收工后快走 20 分钟", "type": "运动建议", "suitable_levels": "[3]", "duration": "", "description": "低强度有氧建议：收车后快走或拉伸 20 分钟，释放压力", "url": "", "status": "active"},
+    {"id": "sh_05", "title": "周末近郊散心路线", "type": "旅行建议", "suitable_levels": "[3]", "duration": "", "description": "南京周边低消费散心路线：玄武湖环湖、紫金山绿道等", "url": "", "status": "active"},
 ]
 SEED_ROLES = [
     {"id": 1, "name": "superadmin", "label": "超级管理员", "description": "拥有全部功能权限",
