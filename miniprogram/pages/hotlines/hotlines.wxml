@@ -26,6 +26,21 @@
     </view>
   </view>
 
+  <!-- 其他支持渠道：无具体号码，不提供拨打，集中在有号码热线下方 -->
+  <block wx:if="{{channels.length}}">
+    <view class="hl-section">其他支持渠道 · 无需打电话</view>
+    <view class="channel-card" wx:for="{{channels}}" wx:key="id">
+      <view class="cc-main">
+        <view class="cc-name">{{item.name}}</view>
+        <view class="cc-desc">{{item.description}}</view>
+      </view>
+      <view class="cc-tag">
+        <van-icon name="{{item.icon}}" size="24rpx" />
+        <text>{{item.tag}}</text>
+      </view>
+    </view>
+  </block>
+
   <!-- Demo6 脚注 -->
   <view class="hl-note">地方渠道可能受地区和服务时间限制。点击电话后需再次确认，不会自动拨号。</view>
 
