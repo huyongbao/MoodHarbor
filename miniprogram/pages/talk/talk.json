@@ -1,1 +1,1 @@
-{"navigationStyle": "custom", "usingComponents": {"van-icon": "/components/vant/icon/index", "van-button": "/components/vant/button/index"}}
+{"usingComponents": {"van-icon": "/components/vant/icon/index", "van-button": "/components/vant/button/index"}, "navigationBarTitleText": "情绪树洞", "navigationBarBackgroundColor": "#071f3d", "navigationBarTextStyle": "white", "backgroundColor": "#071f3d"}

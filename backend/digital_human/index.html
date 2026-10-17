@@ -5,17 +5,24 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover" />
 <title>3D 数字人</title>
 <style>
-  html, body { margin: 0; padding: 0; height: 100%; background: #071f3d; overflow: hidden; }
-  /* 数字人渲染层（背景，先全身直出看效果） */
+  html, body { margin: 0; padding: 0; height: 100%; overflow: hidden; }
+  /* 图2 背景层：深蓝底 + 数字人身后柔和环境光晕 + 向下长渐变过渡 */
+  body {
+    background:
+      radial-gradient(ellipse 70% 45% at 50% 30%, rgba(120, 140, 180, 0.35) 0%, rgba(60, 85, 130, 0.18) 45%, transparent 70%),
+      linear-gradient(180deg, #051d37 0%, #072344 42%, #37435e 62%, #8d8a94 78%, #cec5c8 90%, #d8cfd2 100%);
+  }
+  /* 数字人渲染层（全屏，人物放大贴近——图2 构图） */
   #sdk {
-    position: fixed; left: 0; top: 0; width: 100vw; height: 68vh; z-index: 0;
+    position: fixed; left: 0; top: 0; width: 100vw; height: 100vh; z-index: 0;
     display: flex; align-items: center; justify-content: center;
+    overflow: hidden;  /* 半身构图：放大后裁掉下半身 */
   }
   #sdk canvas { width: 100% !important; height: 100% !important; }
 
   /* ============ 前景层（数字人区）============ */
   .fg-top {
-    position: fixed; left: 0; top: 0; right: 0; height: 68vh;
+    position: fixed; left: 0; top: 0; right: 0; height: 60vh;
     z-index: 100;
     padding: calc(env(safe-area-inset-top, 0px) + 14px) 24px 0;
     box-sizing: border-box;
@@ -90,32 +97,26 @@
     background: #f0ede6; color: #8a8578; font-size: 13.5px;
   }
 
-  /* 引导文案（无对话时） */
-  .guide { display: flex; flex-direction: column; align-items: center; gap: 6px; }
-  .guide-main { color: #fff; font-size: 14.5px; font-weight: 600; text-shadow: 0 2px 10px rgba(0,25,55,0.55); }
-  .guide-sub { color: rgba(255,255,255,0.68); font-size: 11px; line-height: 1.7; text-align: center; }
-
-  /* ============ 底部白色区：语音转写 ============ */
+  /* ============ 底部区：语音转写 + 按钮（背景由 body 渐变承担过渡）============ */
   .fg-bottom {
-    position: fixed; left: 0; right: 0; bottom: 0; height: auto;
+    position: fixed; left: 0; right: 0; bottom: 0; top: 46vh;
     z-index: 100;
-    background: linear-gradient(180deg, rgba(251, 251, 253, 0), #fbfbfd 24%, #fbfbfd);
-    display: flex; flex-direction: column; align-items: center;
-    padding: 18px 24px calc(env(safe-area-inset-bottom, 0px) + 20px);
+    display: flex; flex-direction: column; align-items: center; justify-content: flex-end;
+    padding: 0 24px calc(env(safe-area-inset-bottom, 0px) + 24px);
     box-sizing: border-box;
     font-family: -apple-system, "PingFang SC", sans-serif;
     pointer-events: none;
   }
 
-  /* 用户语音转写区：只显示当前一句 */
+  /* 用户语音转写区：只显示当前一句（图2 大字号样式） */
   .asr-text {
-    min-height: 46px;
+    min-height: 60px;
     display: flex; align-items: center; justify-content: center;
-    color: #33312e; font-size: 16.5px; line-height: 1.6;
-    text-align: center; max-width: 92%;
-    font-weight: 500;
+    color: #1f1d1a; font-size: 21px; line-height: 1.55;
+    text-align: center; width: 100%;
+    font-weight: 600;
   }
-  .asr-text.empty { color: #b8b4ab; font-size: 14px; font-weight: 400; }
+  .asr-text.empty { color: #8a8578; font-size: 16px; font-weight: 400; }
   .asr-hint {
     color: #8a8578; font-size: 11px; letter-spacing: 1px;
   }
@@ -180,11 +181,7 @@
       <span class="subtitle-name" id="subtitle-name">小满</span>
       <span class="subtitle-text" id="subtitle-text"></span>
     </div>
-    <!-- 引导文案（初始态） -->
-    <div class="guide" id="guide">
-      <div class="guide-main">准备好了就开口</div>
-      <div class="guide-sub">不用组织语言，慢慢说</div>
-    </div>
+
   </div>
 </div>
 
@@ -243,15 +240,12 @@
 
   // ---- 字幕 ----
   var subtitleCard = document.getElementById("subtitle");
-  var guideEl = document.getElementById("guide");
   function showSubtitle(text) {
     document.getElementById("subtitle-text").textContent = text;
     subtitleCard.classList.add("show");
-    guideEl.style.display = "none";
     clearTimeout(showSubtitle._t);
     showSubtitle._t = setTimeout(function () {
       subtitleCard.classList.remove("show");
-      guideEl.style.display = "flex";
     }, Math.min(4000 + text.length * 250, 12000));
   }
 
