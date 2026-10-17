@@ -55,6 +55,12 @@ function sendFrame(sessionId, tempImagePath) {
   });
 }
 
+/** 上报关键帧（onCameraFrame 实时帧已转 base64，直接发送——低延迟路径） */
+function sendFrameB64(sessionId, frameB64) {
+  return post("/mp/debug/stream/frame", { sessionId, frame: frameB64 })
+    .catch(() => null);
+}
+
 /** 上报一句完整文本（触发后端判定链 + 数字人回复） */
 function sendText(sessionId, text) {
   return post("/mp/debug/stream/text", { sessionId, text }).then((r) => r.data.data);
@@ -65,4 +71,4 @@ function endSession(sessionId) {
   return post("/mp/debug/stream/end", { sessionId }).catch(() => null);
 }
 
-module.exports = { startSession, sendFrame, sendText, sendAudio, endSession };
+module.exports = { startSession, sendFrame, sendFrameB64, sendText, sendAudio, endSession };

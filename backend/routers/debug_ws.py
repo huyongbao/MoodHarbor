@@ -7,6 +7,7 @@ import base64
 import json
 import logging
 import os
+import threading
 import time
 import uuid
 from datetime import datetime
@@ -141,35 +142,44 @@ async def stream_frame(body: dict, user: User = Depends(_get_mp_user)):
     if not frame_b64:
         return ok(None)
 
-    # 保存帧 → Py-Feat 分析
-    tmp_path = os.path.join(UPLOAD_DIR, f"dbg_{uuid.uuid4().hex[:8]}.jpg")
-    facial = None
-    try:
-        with open(tmp_path, "wb") as f:
-            f.write(base64.b64decode(frame_b64))
-        r = face_service.analyze_face(tmp_path)
-        if r["faces_detected"]:
-            # Py-Feat 7 类 → 契约 5 类映射
-            top_emotion, top_conf = r["labels"][0]
-            mapping = {"happiness": "happy", "neutral": "calm", "sadness": "sad",
-                       "fear": "fear", "anger": "angry", "disgust": "angry", "surprise": "calm"}
-            facial = {"emotion": mapping.get(top_emotion, "calm"),
-                      "confidence": round(top_conf, 2)}
-    except Exception as e:
-        logger.warning(f"帧分析失败: {e}")
-    finally:
-        try:
-            os.remove(tmp_path)
-        except OSError:
-            pass
-
+    # 1. 帧先转发（低延迟优先）：不等分析，立刻广播给管理台
     msg = {"type": "modality_update", "sessionId": sess and body.get("sessionId"),
            "timestamp": _now_ms(),
            "video": {"frame": "data:image/jpeg;base64," + frame_b64}}
-    if facial:
-        msg["facial"] = facial
-        sess and sess.update({"facial": facial})
     broadcast_sync(msg)
+
+    # 2. 表情分析异步化：丢后台线程执行，完成后单独广播（不阻塞帧流）
+    #    丢帧保护：上一帧还在分析时跳过本帧（Py-Feat ~1s/帧，500ms 推流间隔下跳一半属正常）
+    if sess is not None and not getattr(stream_frame, "_analyzing", False):
+        stream_frame._analyzing = True
+
+        def _analyze_async():
+            tmp_path = os.path.join(UPLOAD_DIR, f"dbg_{uuid.uuid4().hex[:8]}.jpg")
+            try:
+                with open(tmp_path, "wb") as f:
+                    f.write(base64.b64decode(frame_b64))
+                r = face_service.analyze_face(tmp_path)
+                if r["faces_detected"]:
+                    top_emotion, top_conf = r["labels"][0]
+                    mapping = {"happiness": "happy", "neutral": "calm", "sadness": "sad",
+                               "fear": "fear", "anger": "angry", "disgust": "angry", "surprise": "calm"}
+                    facial = {"emotion": mapping.get(top_emotion, "calm"),
+                              "confidence": round(top_conf, 2)}
+                    sess.update({"facial": facial})
+                    broadcast_sync({
+                        "type": "modality_update", "sessionId": body.get("sessionId"),
+                        "timestamp": _now_ms(), "facial": facial,
+                    })
+            except Exception as e:
+                logger.warning(f"帧分析失败: {e}")
+            finally:
+                stream_frame._analyzing = False
+                try:
+                    os.remove(tmp_path)
+                except OSError:
+                    pass
+
+        threading.Thread(target=_analyze_async, daemon=True).start()
     return ok(None)
 
 

@@ -259,30 +259,64 @@ Page({
     debugStream.startSession(this.data.conversationId).then((sessionId) => {
       this.setData({ debugStreaming: true, debugSessionId: sessionId });
       wx.showToast({ title: "推流已开启", icon: "success" });
-      // 定时拍帧：每 2s 一帧（camera 组件在 wxml，用 createCameraContext）
+      // 实时帧流：onCameraFrame 官方 API（约 20-30fps 原始帧，节流后 500ms/帧推流）
       this.cameraCtx = wx.createCameraContext();
       this.frameOk = false; // 拍帧成功标记
-      this.frameTimer = setInterval(() => {
-        if (!this.data.debugStreaming) return;
-        this.cameraCtx && this.cameraCtx.takePhoto({
-          quality: "low",
-          success: (res) => {
-            this.frameOk = true;
-            debugStream.sendFrame(this.data.debugSessionId, res.tempImagePath);
-          },
-          fail: () => {
-            if (!this.frameOk) {
-              // 真机 camera 受限时：只提示一次，文本/语音推流继续
-              this.setData({ cameraHint: "摄像头取帧受限：点右上角小窗可手动拍一帧；文字与语音分析不受影响" });
-            }
-          },
-        });
-      }, 2000);
+      const listener = this.cameraCtx.onCameraFrame((frame) => {
+        const now = Date.now();
+        // 节流：500ms 一帧推管理台（≈2fps 平滑视频）
+        if (now - (this._lastFrameTs || 0) < 500) return;
+        this._lastFrameTs = now;
+        this.frameOk = true;
+        // frame.data 是 ArrayBuffer（YUV/RGBA 原始帧）→ 画到离屏 canvas 转 JPEG base64
+        this._pushCameraFrame(frame);
+      });
+      listener.start({ success: () => {}, fail: (e) => this._fallbackToTakePhoto(e) });
+      this._frameListener = listener;
     });
+  },
+
+  // 原始帧 → 压缩 JPEG base64 → 推流（离屏 canvas 转码）
+  _pushCameraFrame(frame) {
+    const w = frame.width, h = frame.height;
+    if (!this._offscreen) {
+      this._offscreen = wx.createOffscreenCanvas({ type: "2d", width: w, height: h });
+      this._offctx = this._offscreen.getContext("2d");
+      this._imgData = this._offctx.createImageData(w, h);
+    }
+    // RGBA 数据直接放
+    this._imgData.data.set(new Uint8Array(frame.data));
+    this._offctx.putImageData(this._imgData, 0, 0);
+    // 转 JPEG（quality 0.5，帧体积 ~15-30KB）
+    const dataUrl = this._offscreen.toDataURL("image/jpeg", 0.5);
+    // 直接发 base64（无需写临时文件）
+    debugStream.sendFrameB64(this.data.debugSessionId, dataUrl.split(",")[1]);
+  },
+
+  // onCameraFrame 不可用时的降级：takePhoto 定时
+  _fallbackToTakePhoto(err) {
+    this.setData({ cameraHint: "实时帧不可用，已降级定时拍照模式" });
+    this.frameTimer = setInterval(() => {
+      if (!this.data.debugStreaming) return;
+      this.cameraCtx && this.cameraCtx.takePhoto({
+        quality: "low",
+        success: (res) => {
+          this.frameOk = true;
+          debugStream.sendFrame(this.data.debugSessionId, res.tempImagePath);
+        },
+        fail: () => {
+          if (!this.frameOk) {
+            this.setData({ cameraHint: "摄像头取帧受限：文字与语音分析不受影响" });
+          }
+        },
+      });
+    }, 1000);
   },
 
   stopDebugStream() {
     if (this.frameTimer) clearInterval(this.frameTimer);
+    if (this._frameListener) { this._frameListener.stop(); this._frameListener = null; }
+    this._offscreen = null; // 释放离屏 canvas
     debugStream.endSession(this.data.debugSessionId);
     this.setData({ debugStreaming: false, debugSessionId: "" });
     wx.showToast({ title: "推流已结束", icon: "none" });
