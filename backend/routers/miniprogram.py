@@ -315,14 +315,23 @@ def list_conversations(user: User = Depends(get_current_user), db: Session = Dep
             return "昨天 " + dt.strftime("%H:%M")
         return dt.strftime("%m-%d %H:%M")
 
-    return ok([
-        {
+    # Demo6 record-card：附带最后一条消息预览 + 消息条数
+    items = []
+    for c in convs:
+        last = (
+            db.query(Message)
+            .filter(Message.conversation_id == c.id)
+            .order_by(Message.id.desc())
+            .first()
+        )
+        count = db.query(Message).filter(Message.conversation_id == c.id).count()
+        items.append({
             "id": c.id, "title": c.title,
             "time": friendly_time(c.created_at),
-            "desc": "",
-        }
-        for c in convs
-    ])
+            "desc": last.content if last else "",
+            "count": count,
+        })
+    return ok(items)
 
 
 # ---------- 对话详情：GET /conversations/{id} ----------
