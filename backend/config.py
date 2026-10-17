@@ -1,4 +1,4 @@
-"""全局配置 —— 情绪树洞后端
+"""全局配置 —— 歇会儿后端
 配置加载优先级：进程环境变量 > backend/.env 文件 > 内置默认值
 （.env 已在 .gitignore 排除，密钥不进代码库；模板见 .env.example）
 """
@@ -12,7 +12,7 @@ except ImportError:
     pass  # 无 python-dotenv 时仅用进程环境变量
 
 # ---- 应用 ----
-APP_NAME = "情绪树洞 API"
+APP_NAME = "歇会儿 API"
 VERSION = "0.1.0"
 # SQLite 单文件起步（PRD V6.1），后期迁移 MySQL 仅改连接串
 # 绝对路径：无论从哪个 cwd 启动，库文件位置一致

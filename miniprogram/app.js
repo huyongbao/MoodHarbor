@@ -1,4 +1,4 @@
-// app.js —— 情绪树洞 全局入口
+// app.js —— 歇会儿 全局入口
 const { login } = require("./utils/api");
 const config = require("./utils/config");
 

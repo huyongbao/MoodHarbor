@@ -220,7 +220,7 @@ export default function App() {
           {view === "login" && (
             <div className="auth-view">
               <div className="brand-mark"><span /><i /></div>
-              <p className="eyebrow">情绪树洞</p>
+              <p className="eyebrow">歇会儿</p>
               <h1>先歇一会儿，<br />这里可以放心说</h1>
               <p className="auth-copy">登录后，你的专属疏导师会记住你的偏好。所有对话都经过加密保护。</p>
               <div className="auth-promise">
@@ -487,7 +487,7 @@ export default function App() {
                   </button>
                 ))}
               </div>
-              <p className="disclaimer">情绪树洞提供心理支持与陪伴，不替代专业医疗诊断。</p>
+              <p className="disclaimer">歇会儿提供心理支持与陪伴，不替代专业医疗诊断。</p>
             </div>
           )}
 

@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "情绪树洞 · 管理后台（Vue3 + Element Plus + RBAC）",
+  "description": "歇会儿 · 管理后台（Vue3 + Element Plus + RBAC）",
   "scripts": {
     "dev": "vite",
     "build": "vite build",

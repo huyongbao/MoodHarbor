@@ -32,7 +32,7 @@ Page({
   goPrivacy() {
     wx.showModal({
       title: "隐私与演示说明",
-      content: "情绪树洞提供心理支持与陪伴，不替代专业医疗诊断。",
+      content: "歇会儿提供心理支持与陪伴，不替代专业医疗诊断。",
       showCancel: false,
       confirmText: "知道了",
     });

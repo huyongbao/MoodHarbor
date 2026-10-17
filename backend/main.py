@@ -1,4 +1,4 @@
-"""FastAPI 入口 —— 情绪树洞后端（阶段二骨架）
+"""FastAPI 入口 —— 歇会儿后端（阶段二骨架）
 启动：cd backend && uvicorn main:app --reload --port 8000
 """
 from fastapi import FastAPI
@@ -231,4 +231,4 @@ def startup():
 
 @app.get("/")
 def root():
-    return {"code": 0, "message": "情绪树洞 API 运行中", "data": {"version": VERSION}}
+    return {"code": 0, "message": "歇会儿 API 运行中", "data": {"version": VERSION}}
