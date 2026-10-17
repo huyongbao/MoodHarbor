@@ -238,6 +238,19 @@
     hotlineCard.classList.remove("show");
   });
 
+  // ---- H5 按钮占位提示（开发者工具里 cover-view 不渲染，点此按钮提示真机体验）----
+  var btnVisual = document.getElementById("btn-visual");
+  if (btnVisual) {
+    var tipTimer = null;
+    btnVisual.addEventListener("click", function () {
+      var t = document.getElementById("btn-visual-text");
+      var orig = "按住开始说话";
+      t.textContent = "语音对话请在真机体验";
+      clearTimeout(tipTimer);
+      tipTimer = setTimeout(function () { t.textContent = orig; }, 2000);
+    });
+  }
+
   // ---- 字幕 ----
   var subtitleCard = document.getElementById("subtitle");
   function showSubtitle(text) {
@@ -246,7 +259,7 @@
     clearTimeout(showSubtitle._t);
     showSubtitle._t = setTimeout(function () {
       subtitleCard.classList.remove("show");
-    }, Math.min(4000 + text.length * 250, 12000));
+    }, Math.min(6000 + text.length * 250, 15000));
   }
 
   // ---- 转写区（只显示当前一句）----
