@@ -1,8 +1,20 @@
-<view class="dh-page safe-top">
-  <web-view wx:if="{{url}}" src="{{url}}" bindload="onWebviewLoad" class="dh-webview" />
+<view class="dh-page">
+  <!-- 背景：3D 数字人 H5（渲染+字幕+热线卡都在 H5 内） -->
+  <web-view wx:if="{{url}}" src="{{url}}" bindload="onWebviewLoad" bindmessage="onWebviewMessage" class="dh-webview">
+    <!-- 前景原生层：按住说话（cover-view 可覆盖 web-view，真机生效） -->
+    <cover-view class="cv-bottom">
+      <cover-view
+        class="hold-talk {{recording ? 'recording' : ''}}"
+        bindtouchstart="onHoldStart"
+        bindtouchend="onHoldEnd"
+        bindtouchcancel="onHoldEnd"
+      >{{recording ? "松开结束" : "按住说话"}}</cover-view>
+      <cover-view class="cv-privacy">对话加密保护 · 不保留屏幕聊天记录</cover-view>
+    </cover-view>
+  </web-view>
 
   <view wx:if="{{!configured}}" class="dh-fallback">
     <text>3D 数字人未配置</text>
-    <text style="font-size:20rpx;color:#a2aaa7">请在 backend/.env 填写 DH_APP_ID / DH_APP_SECRET\n（魔珐星云 xingyun3d.com 创建驱动应用获取）\n然后重启后端</text>
+    <text style="font-size:20rpx;color:#a2aaa7">请在 backend/.env 填写 DH_APP_ID_FEMALE / DH_APP_ID_MALE\n（魔珐星云 xingyun3d.com 创建驱动应用获取）\n然后重启后端</text>
   </view>
 </view>

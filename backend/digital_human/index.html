@@ -2,66 +2,179 @@
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover" />
 <title>3D 数字人</title>
 <style>
-  html, body { margin: 0; padding: 0; height: 100%; background: linear-gradient(165deg, #e2eee8, #f4eee3); overflow: hidden; }
-  #sdk { width: 100vw; height: 100vh; }
-  .hint {
-    position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%);
-    color: #779189; font-size: 14px; text-align: center; font-family: -apple-system, "PingFang SC", sans-serif;
-    line-height: 1.8; z-index: 0;
-  }
-  .hint.error { color: #a95e50; }
+  html, body { margin: 0; padding: 0; height: 100%; background: #0b274e; overflow: hidden; }
+  /* 数字人渲染层（背景） */
+  #sdk { position: fixed; left: 0; top: 0; width: 100vw; height: 100vh; z-index: 0; }
 
-  /* 字幕浮层：数字人说话内容同步展示 */
-  .subtitle {
-    position: fixed; left: 50%; bottom: 9%;
-    transform: translateX(-50%);
+  /* ============ 前景交互层（叠在数字人上） ============ */
+  .fg {
+    position: fixed; left: 0; top: 0; right: 0; bottom: 0;
     z-index: 100;
-    display: flex; flex-direction: column; align-items: center; gap: 6px;
-    max-width: 86%;
-    padding: 14px 22px;
-    border-radius: 18px;
-    background: rgba(255, 255, 255, 0.93);
-    box-shadow: 0 8px 24px rgba(35, 64, 57, 0.18);
-    animation: sub-in 0.3s ease-out;
-    font-family: -apple-system, "PingFang SC", sans-serif;
+    display: flex; flex-direction: column;
+    padding: calc(env(safe-area-inset-top, 0px) + 14px) 24px calc(env(safe-area-inset-bottom, 0px) + 18px);
+    box-sizing: border-box;
+    font-family: -apple-system, "PingFang SC", "Noto Sans SC", sans-serif;
+    pointer-events: none; /* 默认穿透，只有可交互元素开启 */
   }
-  .subtitle-name {
-    font-size: 11px; color: #54786e; font-weight: 700; letter-spacing: 2px;
+  .fg > * { pointer-events: auto; }
+
+  /* ---- 顶栏：名字 + 状态 + 关闭 ---- */
+  .topbar {
+    display: flex; align-items: center; justify-content: space-between;
   }
-  .subtitle-text {
-    font-size: 15px; color: #33312e; line-height: 1.65; text-align: center;
-    max-height: 88px; overflow: hidden;
+  .brand { display: flex; flex-direction: column; align-items: center; gap: 4px; flex: 1; }
+  .brand-name {
+    color: #fff; font-size: 19px; font-weight: 700; letter-spacing: 4px;
+    text-shadow: 0 2px 12px rgba(0, 30, 60, 0.55);
   }
-  @keyframes sub-in {
-    from { opacity: 0; transform: translateX(-50%) translateY(14px); }
-    to { opacity: 1; transform: translateX(-50%) translateY(0); }
+  .brand-state {
+    display: flex; align-items: center; gap: 6px;
+    color: rgba(255, 255, 255, 0.85); font-size: 11px; letter-spacing: 2px;
   }
+  .brand-dot {
+    width: 7px; height: 7px; border-radius: 50%;
+    background: #6fe3a6; box-shadow: 0 0 8px #6fe3a6;
+    animation: breathe 2s ease-in-out infinite;
+  }
+  @keyframes breathe { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
+  .close-btn {
+    width: 34px; height: 34px; border-radius: 50%;
+    border: 0; background: rgba(10, 30, 55, 0.45); color: rgba(255,255,255,0.9);
+    font-size: 15px; line-height: 34px; text-align: center;
+    backdrop-filter: blur(6px);
+  }
+
+  /* ---- 中部弹性区：字幕升到这里 ---- */
+  .mid { flex: 1; display: flex; flex-direction: column; justify-content: flex-end; gap: 10px; padding-bottom: 14px; }
+
+  /* ---- 字幕卡：数字人当前说的话 ---- */
+  .subtitle-card {
+    display: none; /* speak 时显示 */
+    flex-direction: column; align-items: center; gap: 8px;
+    padding: 16px 20px;
+    border-radius: 20px;
+    background: rgba(255, 255, 255, 0.95);
+    box-shadow: 0 10px 32px rgba(0, 25, 55, 0.28);
+    animation: card-in 0.32s ease-out;
+  }
+  .subtitle-card.show { display: flex; }
+  .subtitle-name { font-size: 11px; color: #54786e; font-weight: 700; letter-spacing: 3px; }
+  .subtitle-text { font-size: 15.5px; color: #33312e; line-height: 1.7; text-align: center; }
+  @keyframes card-in { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+
+  /* ---- 热线提示卡（二级及以上干预时出现） ---- */
+  .hotline-card {
+    display: none;
+    flex-direction: column; align-items: center; gap: 8px;
+    padding: 18px 22px; border-radius: 22px;
+    background: #fff;
+    box-shadow: 0 14px 40px rgba(0, 25, 55, 0.3);
+  }
+  .hotline-card.show { display: flex; }
+  .hotline-tags { display: flex; gap: 8px; }
+  .hotline-tag {
+    padding: 4px 10px; border-radius: 999px; font-size: 10px;
+    background: #edf5f1; color: #3c7a61;
+  }
+  .hotline-org { font-size: 14px; color: #33312e; font-weight: 600; }
+  .hotline-phone { font-size: 21px; color: #d85a4a; font-weight: 800; letter-spacing: 1px; }
+  .hotline-note { font-size: 11px; color: #8a8578; }
+  .hotline-call {
+    margin-top: 4px; width: 100%; padding: 11px 0; border: 0; border-radius: 14px;
+    background: linear-gradient(135deg, #f2994a, #e8823a); color: #fff;
+    font-size: 14px; font-weight: 700; letter-spacing: 2px;
+  }
+
+  /* ---- 引导提示（无对话时） ---- */
+  .guide { display: flex; flex-direction: column; align-items: center; gap: 7px; }
+  .guide-main { color: #fff; font-size: 15px; font-weight: 600; text-shadow: 0 2px 10px rgba(0,30,60,0.5); }
+  .guide-sub { color: rgba(255,255,255,0.72); font-size: 11.5px; line-height: 1.7; text-align: center; }
+
+  /* ---- 底部：按住说话 + 隐私 ---- */
+  .bottom { display: flex; flex-direction: column; align-items: center; gap: 10px; }
+  .hold-talk {
+    width: 100%; max-width: 320px; padding: 15px 0; border: 0; border-radius: 999px;
+    background: linear-gradient(135deg, #f2994a, #e87d2e); color: #fff;
+    font-size: 16px; font-weight: 700; letter-spacing: 3px;
+    box-shadow: 0 12px 30px rgba(230, 120, 40, 0.45);
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+  }
+  .hold-talk:active, .hold-talk.recording {
+    transform: scale(0.97);
+    box-shadow: 0 6px 18px rgba(230, 120, 40, 0.6);
+  }
+  .hold-talk.recording { background: linear-gradient(135deg, #d85a4a, #c74030); }
+  .privacy-note { color: rgba(255,255,255,0.6); font-size: 10.5px; letter-spacing: 1px; }
+
+  /* ---- 加载/错误提示 ---- */
+  .hint {
+    position: fixed; left: 50%; top: 42%; transform: translate(-50%, -50%);
+    color: #fff; font-size: 13px; text-align: center; z-index: 50;
+    line-height: 1.8; text-shadow: 0 2px 8px rgba(0,25,55,0.6);
+  }
+  .hint.error { color: #ffb4a6; }
 </style>
 </head>
 <body>
+<!-- 背景层：3D 数字人渲染 -->
 <div id="sdk"></div>
+<div class="hint" id="hint">数字人正在唤醒中…</div>
 
-<!-- 字幕浮层：数字人说话时同步展示对话内容 -->
-<div class="subtitle" id="subtitle" style="display:none">
-  <span class="subtitle-name" id="subtitle-name">小满</span>
-  <span class="subtitle-text" id="subtitle-text"></span>
+<!-- 前景交互层 -->
+<div class="fg">
+  <!-- 顶栏 -->
+  <div class="topbar">
+    <view style="width:34px"></view>
+    <div class="brand">
+      <div class="brand-name" id="brand-name">小满</div>
+      <div class="brand-state"><div class="brand-dot"></div>正在陪你</div>
+    </div>
+    <button class="close-btn" id="close-btn">✕</button>
+  </div>
+
+  <!-- 中部：字幕卡 / 热线卡 / 引导 -->
+  <div class="mid">
+    <div class="hotline-card" id="hotline-card">
+      <div class="hotline-tags">
+        <span class="hotline-tag">免费</span><span class="hotline-tag">匿名</span>
+        <span class="hotline-tag">有人接</span><span class="hotline-tag">不评判</span>
+      </div>
+      <div class="hotline-org">南京市总工会 宁师傅热线</div>
+      <div class="hotline-phone">025-96889910</div>
+      <div class="hotline-note">每晚 18:30 后，免费陪你说，不评判</div>
+      <button class="hotline-call" id="hotline-call">联系宁师傅</button>
+    </div>
+    <div class="subtitle-card" id="subtitle">
+      <span class="subtitle-name" id="subtitle-name">小满</span>
+      <span class="subtitle-text" id="subtitle-text"></span>
+    </div>
+    <div class="guide" id="guide">
+      <div class="guide-main">准备好了就开口</div>
+      <div class="guide-sub">这里一次只显示你当前说的一句话<br/>不用组织语言，慢慢说</div>
+    </div>
+  </div>
+
+  <!-- 底部（占位：原生 cover-view 按住说话按钮由小程序层渲染，H5 只留安全边距） -->
 </div>
 
-<div class="hint" id="hint">数字人正在唤醒中…</div>
 <script src="https://media.xingyun3d.com/xingyun3d/general/litesdk/xmovAvatar@latest.js"></script>
 <script>
 /**
- * 魔珐星云 3D 数字人宿主页（小程序 web-view 载体）
- * —— 数据流 ——
- *   小程序 web-view URL 带 dh_appid/dh_secret → 本页初始化 XmovAvatar → 3D 渲染
- *   小程序 wx.miniProgram.postMessage({type:'speak', text}) → SDK speak() 数字人开口说话
- *   SDK onStateChange → postMessage 回小程序（连接状态）
- * URL 参数（GET）：
- *   appid  —— 魔珐星云驱动应用 appId（必填）
- *   secret —— 驱动应用 appSecret（必填；生产建议改由后端签发临时 token）
+ * 沉浸式 3D 数字人对话页（web-view 载体）
+ * —— 分层架构 ——
+ *   背景层：XmovAvatar 3D 数字人实时渲染（z-index 0）
+ *   前景层：顶栏 / 字幕卡 / 热线提示卡 / 按住说话（z-index 100）
+ * —— 通信协议 ——
+ *   进页参数：appid / secret / name（xiaoman|zhiyuan）
+ *   hash 指令（H5 每 300ms 轮询）：
+ *     #speak=<text>       数字人说话 + 字幕
+ *     #hotline=show       显示热线提示卡（二级干预）
+ *     #hotline=hide       隐藏热线卡
+ *     #back               关闭返回小程序
+ *   页面 → 小程序：wx.miniProgram.postMessage（特定时机）；navigateBack 用 wx.miniProgram.navigateBack
  */
 (function () {
   var qs = new URLSearchParams(location.search);
@@ -69,16 +182,48 @@
   var appSecret = qs.get("secret") || "";
   var dhName = qs.get("name") === "zhiyuan" ? "知远" : "小满";
   document.title = dhName + " · 3D 数字人";
+  document.getElementById("brand-name").textContent = dhName;
   document.getElementById("subtitle-name").textContent = dhName;
   var hintEl = document.getElementById("hint");
 
   function setHint(text, isError) {
     hintEl.textContent = text;
     hintEl.className = "hint" + (isError ? " error" : "");
+    hintEl.style.display = text ? "block" : "none";
   }
 
+  // ---- 小程序桥 ----
+  function mpBack() {
+    try { wx.miniProgram.navigateBack(); } catch (e) { history.back(); }
+  }
+  document.getElementById("close-btn").addEventListener("click", mpBack);
+  document.getElementById("hotline-call").addEventListener("click", function () {
+    // 电话号码走小程序侧 wx.makePhoneCall（H5 内 tel 链接在 web-view 受限）
+    window.location.href = "tel:02596889910"; // web-view 内 tel 协议兜底
+    try { wx.miniProgram.postMessage({ data: { type: "call_hotline", phone: "025-96889910" } }); } catch (e) {}
+  });
+
+  // ---- 字幕管理 ----
+  var subtitleCard = document.getElementById("subtitle");
+  var guideEl = document.getElementById("guide");
+  function showSubtitle(text) {
+    document.getElementById("subtitle-text").textContent = text;
+    subtitleCard.classList.add("show");
+    guideEl.style.display = "none";
+    clearTimeout(showSubtitle._t);
+    showSubtitle._t = setTimeout(function () {
+      subtitleCard.classList.remove("show");
+      guideEl.style.display = "flex";
+    }, Math.min(4000 + text.length * 250, 12000));
+  }
+
+  // ---- 热线卡管理 ----
+  var hotlineCard = document.getElementById("hotline-card");
+  function showHotline() { hotlineCard.classList.add("show"); }
+  function hideHotline() { hotlineCard.classList.remove("show"); }
+
   if (!appId || !appSecret) {
-    setHint("未配置数字人应用密钥（DH_APP_ID_FEMALE / DH_APP_ID_MALE）\n请在 backend/.env 中填写后重启", true);
+    setHint("未配置数字人应用密钥（DH_APP_ID_FEMALE / DH_APP_ID_MALE）\\n请在 backend/.env 中填写后重启", true);
     return;
   }
 
@@ -90,9 +235,8 @@
     appSecret: appSecret,
     gatewayServer: "https://nebula-agent.xingyun3d.com/user/v1/ttsa/session",
     hardwareAcceleration: "prefer-hardware",
-    enableLogger: true,
+    enableLogger: false,
     onStateChange: function (state) {
-      // 状态回传小程序（SDK 状态机：init → rendering → pausing/paused → resumed → stopped）
       window.dhStates = window.dhStates || [];
       window.dhStates.push(String(state) + "@" + Date.now() % 100000);
       try {
@@ -118,55 +262,47 @@
       console.log("network:", info);
     },
     onVoiceStateChange: function (status) {
-      // 语音播报状态回传（小程序可显示"正在说话/已说完"）
       try {
         wx.miniProgram.postMessage({ data: { type: "voice_state", status: String(status) } });
       } catch (e) {}
     },
   });
 
-  // ---- 桥接：小程序 → 数字人说话 ----
-  // web-view 内无法直接收 postMessage（微信限制：仅网页→小程序单向），
-  // 因此小程序通过 URL hash 变化传递 speak 指令：
-  // location.hash = '#speak=' + encodeURIComponent(text)
+  // ---- hash 指令轮询（小程序 → H5）----
   var lastHash = "";
-  var subtitleEl = document.getElementById("subtitle");
-  function showSubtitle(text) {
-    if (!subtitleEl) return;
-    document.getElementById("subtitle-text").textContent = text;
-    subtitleEl.style.display = "flex";
-    // 按语速估算显示时长（4s 起步 + 250ms/字）
-    clearTimeout(showSubtitle._t);
-    showSubtitle._t = setTimeout(function () {
-      subtitleEl.style.display = "none";
-    }, Math.min(4000 + text.length * 250, 12000));
-  }
   function checkHash() {
     if (location.hash !== lastHash) {
       lastHash = location.hash;
-      var m = /speak=([\s\S]+)/.exec(decodeURIComponent(lastHash.replace(/^#/, "")) || "");
-      if (m) {
+      var cmd = decodeURIComponent(lastHash.replace(/^#/, "")) || "";
+      var m;
+      if ((m = /speak=([\s\S]+)/.exec(cmd))) {
         var text = m[1];
         if (text) {
-          window.dhSpeakLog = window.dhSpeakLog || []; window.dhSpeakLog.push({t: Date.now(), text: text.slice(0, 20)}); sdk.speak(text, true, true);
+          window.dhSpeakLog = window.dhSpeakLog || [];
+          window.dhSpeakLog.push({ t: Date.now(), text: text.slice(0, 20) });
+          sdk.speak(text, true, true);
           showSubtitle(text);
           setHint("");
         }
+      } else if (/hotline=show/.test(cmd)) {
+        showHotline();
+      } else if (/hotline=hide/.test(cmd)) {
+        hideHotline();
+      } else if (/^back$/.test(cmd)) {
+        mpBack();
       }
     }
   }
   setInterval(checkHash, 300);
 
-  // ---- 初始化连接 ----
-  // SDK v2.4.1：init({ onDownloadProgress, initModel }) 建立会话
-  var initDone = false; // 防止 100% 回调在 init 完成后覆盖就绪提示
+  // ---- 初始化 ----
+  var initDone = false;
   sdk.init({
     initModel: "normal",
     onDownloadProgress: function (p) {
       if (!initDone) setHint(dhName + "资源加载 " + p + "%");
     },
   }).then(function () {
-    // init 完成：资源已就绪（TTSA 连接已建立），清提示
     initDone = true;
     setHint("");
     try { wx.miniProgram.postMessage({ data: { type: "dh_ready" } }); } catch (e) {}
