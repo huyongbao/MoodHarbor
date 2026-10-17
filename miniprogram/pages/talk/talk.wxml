@@ -1,151 +1,29 @@
-<view class="talk-view safe-top">
-  <!-- 顶部栏 -->
-  <view class="topbar">
-    <van-button custom-class="btn-round" bindtap="onBack" aria-label="返回"><van-icon name="arrow-left" size="20px" /></van-button>
-    <view class="talk-title">
-      <view class="tt-name">和{{companion.name}}聊聊</view>
-      <view class="tt-state"><view class="tt-dot"></view>正在陪伴</view>
-    </view>
-    <view class="privacy-pill"><van-icon name="shield-o" size="12px" /> 已加密</view>
+<view class="talk-page">
+  <!-- 背景：3D 数字人 H5（数字人/字幕/转写区/热线卡全在 H5 内） -->
+  <web-view wx:if="{{dhUrl}}" src="{{dhUrl}}" bindload="onWebviewLoad" bindmessage="onWebviewMessage" class="dh-webview">
+    <!-- 前景原生层：按住说话按钮（cover-view 覆盖 web-view，真机生效） -->
+    <cover-view class="cv-bottom">
+      <cover-view
+        class="hold-talk {{recording ? 'recording' : ''}} {{processing ? 'processing' : ''}}"
+        bindtouchstart="onHoldStart"
+        bindtouchend="onHoldEnd"
+        bindtouchcancel="onHoldEnd"
+      >{{recording ? "松开结束" : (processing ? "小满正在倾听…" : "按住开始说话")}}</cover-view>
+    </cover-view>
+  </web-view>
+
+  <!-- 未配置数字人：兜底提示（保留语音对话能力） -->
+  <view wx:if="{{configured === false}}" class="dh-fallback">
+    <text>3D 数字人未配置</text>
+    <text class="fb-sub">请在 backend/.env 填写 DH_APP_ID_FEMALE / DH_APP_ID_MALE\n（魔珐星云 xingyun3d.com 创建驱动应用获取）后重启后端</text>
+    <view class="fb-btn" bindtouchstart="onHoldStart" bindtouchend="onHoldEnd">{{recording ? "松开结束" : "按住开始说话"}}</view>
   </view>
 
-  <!-- 调试推流开关（管理台实时观察）-->
-  <view class="debug-strip" bindtap="onToggleDebugStream">
-    <van-icon name="eye-o" size="24rpx" />
-    <text>{{debugStreaming ? "推流中 · 点击结束" : "开启实时推流（管理台可观察）"}}</text>
-  </view>
-  <view wx:if="{{cameraHint}}" class="camera-hint">{{cameraHint}}</view>
-
-  <!-- 表情识别摄像头小窗（进入页面自动开启）+ 状态胶囊 -->
-  <view class="face-detect-box">
-    <camera wx:if="{{faceActive}}" device-position="front" flash="off" class="debug-camera" bindtap="onManualFrame" binderror="onCameraError" />
-    <view wx:else class="debug-camera face-off">
-      <van-icon name="warning-o" size="28rpx" />
-    </view>
-    <view class="face-status {{faceActive ? 'on' : 'off'}}">{{faceActive ? "● " : ""}}{{faceStatus}}</view>
+  <!-- 加载中 -->
+  <view wx:if="{{configured === null}}" class="dh-fallback">
+    <text>正在连接小满…</text>
   </view>
 
-  <!-- 数字人 hero 区（点击进入 3D 实时对话模式：数字人动起来 + 字幕展示） -->
-  <view class="hero">
-    <view class="aurora aurora-one"></view>
-    <view class="aurora aurora-two"></view>
-    <view class="companion-wrap">
-      <view class="halo halo-one"></view>
-      <view class="halo halo-two"></view>
-      <view class="leaf leaf-left"></view>
-      <view class="leaf leaf-right"></view>
-      <view class="companion-figure" bindtap="openDigitalHuman">
-        <image class="companion-figure-img" src="{{companion.avatarUrl}}" mode="aspectFill" />
-        <view wx:if="{{dh3dAvailable}}" class="dh3d-badge">3D</view>
-      </view>
-      <view class="online-dot"></view>
-    </view>
-    <view class="guide-copy">
-      <text class="guide-name">{{companion.name}}</text>
-      <text class="guide-state"><view class="gs-dot"></view>正在陪伴</text>
-    </view>
-  </view>
-
-  <!-- 消息区 -->
-  <scroll-view class="msg-list" scroll-y scroll-into-view="{{scrollInto}}" scroll-with-animation>
-    <view
-      wx:for="{{messages}}"
-      wx:key="index"
-      class="message {{item.role === 'user' ? 'user-message' : 'ai-message'}}"
-    >
-      <block wx:if="{{item.role === 'ai'}}"><view class="ai-name">{{companion.name}}</view></block>
-      {{item.content}}
-    </view>
-    <view id="msg-bottom" class="scroll-anchor"></view>
-  <view wx:if="{{sending}}" class="typing">小愈正在认真听…</view>
-
-    <!-- 三级：自助资源推荐条（PRD：底部资源推荐卡）-->
-    <view wx:if="{{showSelfHelpStrip}}" class="selfhelp-strip">
-      <view class="shs-title">也许这些会帮到你</view>
-      <view class="shs-items">
-        <view class="shs-item" wx:for="{{selfHelpItems}}" wx:key="id">
-          <view class="shs-item-label"><van-icon name="play-circle" size="24rpx" /><text> {{item.title}}</text></view>
-          <text class="shs-dur">{{item.duration}}</text>
-        </view>
-      </view>
-    </view>
-  </scroll-view>
-
-  <!-- 输入区 -->
-  <view class="input-bar">
-    <!-- 模式切换：键盘/按住说话 -->
-    <view class="ib-mode" bindtap="onToggleInputMode">
-      <van-icon name="{{inputMode === 'voice' ? 'keyboard' : 'chat-o'}}" size="22px" />
-    </view>
-
-    <!-- 按住说话模式（默认）-->
-    <view
-      wx:if="{{inputMode === 'voice'}}"
-      class="hold-to-talk {{recording ? 'recording' : ''}}"
-      bindtouchstart="onHoldStart"
-      bindtouchend="onHoldEnd"
-      bindtouchcancel="onHoldEnd"
-    >
-      <van-icon name="audio" size="18px" />
-      <text>{{recording ? "松开发送" : "按住 说话"}}</text>
-    </view>
-
-    <!-- 键盘模式 -->
-    <block wx:else>
-      <input
-        class="ib-input"
-        value="{{inputText}}"
-        bindinput="onInput"
-        bindconfirm="onSendText"
-        confirm-type="send"
-        placeholder="想到哪儿说到哪儿…"
-        placeholder-class="ib-ph"
-      />
-      <van-button custom-class="ib-send" bindtap="onSendText" disabled="{{sending}}">发送</van-button>
-    </block>
-  </view>
-
-  <!-- 快捷话题 -->
-  <view class="prompt-row">
-    <view class="prompt" bindtap="onPrompt" data-t="今天有点累">今天有点累</view>
-    <view class="prompt" bindtap="onPrompt" data-t="被客户误解了">被客户误解了</view>
-    <view class="prompt" bindtap="onPrompt" data-t="我想安静一下">我想安静一下</view>
-  </view>
-</view>
-
-<!-- 分级干预弹窗（PRD 8.2 映射表：一级强制/二级温和）-->
-<view wx:if="{{showIntervention}}" class="modal-backdrop">
-  <view class="intervention-modal">
-    <view class="modal-shield">{{intervention.type === 'emergency' ? '🛡' : '☎'}}</view>
-    <view class="im-title">
-      {{intervention.type === 'emergency' ? '先确保你现在是安全的' : '需要时，有人可以接住你'}}
-    </view>
-    <view class="im-copy">
-      {{intervention.type === 'emergency'
-        ? '请放下可能伤害自己的物品，走到有人的地方。专业人员会陪你度过这一刻。'
-        : '你不需要独自撑着。以下热线由专业人员接听，可匿名倾诉。'}}
-    </view>
-
-    <view class="hotline-call" bindtap="onCallHotline" data-phone="{{intervention.hotline.phone || '12356'}}">
-      <view class="hc-left">
-        <view class="hc-name">{{intervention.hotline.name || '全国心理援助热线'}}</view>
-        <view class="hc-phone">{{intervention.hotline.phone || '12356'}}</view>
-      </view>
-      <view class="hc-btn">拨打</view>
-    </view>
-    <view wx:if="{{intervention.type === 'emergency'}}" class="hotline-call secondary" bindtap="onCallHotline" data-phone="110">
-      <view class="hc-left">
-        <view class="hc-name">紧急危险</view>
-        <view class="hc-phone">110 / 120</view>
-      </view>
-      <view class="hc-btn">拨打</view>
-    </view>
-
-    <van-button
-      wx:if="{{!emergencyLocked}}"
-      class="modal-close"
-      bindtap="closeIntervention"
-    >我现在还好，返回对话</van-button>
-    <view wx:else class="modal-locked">为你的安全着想，请先看看上方的号码（{{emergencyCountdown}}s 后可返回）</view>
-  </view>
+  <!-- 隐藏摄像头：表情识别取帧（1rpx 不可见，页面无摄像头画面） -->
+  <camera wx:if="{{configured !== false}}" device-position="front" flash="off" class="hidden-camera" />
 </view>
