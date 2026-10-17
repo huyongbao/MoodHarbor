@@ -13,7 +13,8 @@ from common import ok, BizError
 from config import UPLOAD_DIR, WX_LOGIN_MOCK, WX_APPID, WX_SECRET
 from database import get_db
 from models.entities import (
-    User, DigitalHuman, Conversation, Message, RiskAlert, Hotline, SelfHelp,
+    User, DigitalHuman, Conversation, Message, RiskAlert, AlertFollowUp,
+    RiskEvaluation, Hotline, SelfHelp,
 )
 from services.llm_provider import generate_reply, build_intervention, ACTION_MAP
 from services import memory_service
@@ -33,10 +34,11 @@ class LoginBody:
 @router.post("/auth/wechat-login")
 async def wechat_login(body: dict, db: Session = Depends(get_db)):
     code = body.get("code", "")
-    # 开发阶段：code2Session 需要正式域名与密钥，Mock 模式用 code 直接当 openid
+    # 开发阶段：code2Session 需要正式域名与密钥，Mock 模式用固定 openid，
+    # 保证重复登录命中同一用户（初始化状态、倾诉记录可复现）
     # 正式联调：WX_LOGIN_MOCK=false 时走微信 jscode2session
     if WX_LOGIN_MOCK:
-        openid = "wx_" + (code or uuid.uuid4().hex[:12])
+        openid = "wx_dev_demo"
     else:
         import httpx
         async with httpx.AsyncClient(timeout=10) as client:
@@ -192,6 +194,7 @@ async def chat_completions(body: dict, user: User = Depends(get_current_user), d
 
     # 2. LLM 生成回复 + 风险推理（趋势摘要拼进 Prompt，模型可感知"嘴上没事、实际恶化"）
     result = await generate_reply(text, context_summary=trend_summary)
+    base_level = result["riskLevel"]  # 模型原始评级（矛盾/趋势提升前的基准，供三级评估留痕）
 
     # 3. 矛盾提升（PRD 9.2 步骤 5 + V6.2 单次请求内判定）：
     #    文本低风险（3/4级）但表情或语音极高痛苦 → 自动提升一级（riskLevel 数值减 1）
@@ -237,10 +240,50 @@ async def chat_completions(body: dict, user: User = Depends(get_current_user), d
     # 5. 对话后：写入记忆（情绪快照，供下次趋势判断）
     memory_service.add(db, user.id, conv_id, text, result["riskLevel"])
 
-    # 4. 一级/二级自动生成预警（PRD 9.3：后台人工跟进）
-    if result["riskLevel"] in (1, 2):
+    # 6. 预警处置链路（赛题：系统应持续关注对话走向，如用户表达进一步恶化，则升级为一级处置）
+    if result["riskLevel"] == 1:
+        # 存在未闭环二级（橙）工单 → 升级原单（保留处置链路可追溯），否则新建一级工单
+        open_alert = (
+            db.query(RiskAlert)
+            .filter(RiskAlert.user_id == user.id,
+                    RiskAlert.level == 2,
+                    RiskAlert.status.in_(("pending", "processing")))
+            .order_by(RiskAlert.created_at.desc())
+            .first()
+        )
+        if open_alert:
+            prev_status = open_alert.status
+            open_alert.level = 1
+            open_alert.escalated_from = 2
+            open_alert.escalated_at = datetime.utcnow()
+            open_alert.escalated_reason = (result.get("reason") or "")[:200]
+            open_alert.status = "pending"  # 升级后重新进入待处置队列
+            open_alert.conversation_id = conv_id  # 指向最新恶化对话，便于人工回溯
+            db.add(AlertFollowUp(
+                alert_id=open_alert.id, from_status=prev_status, to_status="pending",
+                operator="system", is_system=True,
+                note="系统检测到对话进一步恶化，自动由二级（橙）升级为一级（红）处置："
+                     + (result.get("reason") or "")[:120],
+            ))
+        else:
+            db.add(RiskAlert(user_id=user.id, conversation_id=conv_id,
+                             level=1, trigger_words=(result.get("reason") or "")[:200]))
+        db.commit()
+    elif result["riskLevel"] == 2:
         db.add(RiskAlert(user_id=user.id, conversation_id=conv_id,
-                         level=result["riskLevel"], trigger_words=result["reason"][:200]))
+                         level=2, trigger_words=(result.get("reason") or "")[:200]))
+        db.commit()
+
+    # 7. 三级（黄）升级评估留痕（赛题：共情疏导与正常化，无需强制转介，但应保留升级评估机制）
+    if base_level == 3:
+        trajectory = [m.risk_level for m in reversed(memory_service.get_recent(db, user.id, 3))]
+        db.add(RiskEvaluation(
+            user_id=user.id, conversation_id=conv_id,
+            level=result["riskLevel"],  # 评估后最终等级（3=维持疏导 / 2=已触发升级）
+            reason=(result.get("reason") or "")[:200],
+            trajectory=json.dumps(trajectory),  # 近3次风险轨迹，时间正序（末位为本次）
+            escalated=result["riskLevel"] < 3,
+        ))
         db.commit()
 
     return ok({

@@ -72,7 +72,12 @@ class Message(Base):
 
 
 class RiskAlert(Base):
-    """预警记录 —— 状态机（V6.1）: pending → processing → resolved/false_alarm"""
+    """预警记录 —— 状态机（V6.1）: pending → processing → resolved/false_alarm
+
+    升级链路（赛题：持续关注对话走向，恶化则升级为一级处置）：
+    未闭环二级（橙）工单在用户表达进一步恶化时升级为一级（红），
+    escalated_* 三字段记录升级来源，形成可答辩的处置闭环。
+    """
 
     __tablename__ = "risk_alerts"
 
@@ -83,8 +88,46 @@ class RiskAlert(Base):
     trigger_words = Column(Text, default="")  # 触发原因（模型 reason）
     status = Column(String(16), default="pending")
     handled_by = Column(String(64), default="")
+    remark = Column(Text, default="")  # 跟进备注（外呼情况、转介结果）
+    escalated_from = Column(Integer, nullable=True)  # 升级前等级（如 2=橙升红）
+    escalated_at = Column(DateTime, nullable=True)
+    escalated_reason = Column(Text, default="")
     created_at = Column(DateTime, default=now)
     updated_at = Column(DateTime, default=now, onupdate=now)  # V6.2
+
+
+class AlertFollowUp(Base):
+    """预警跟进时间线 —— 人工跟进机制留痕：人工状态流转 + 系统自动升级均记一条"""
+
+    __tablename__ = "alert_follow_ups"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    alert_id = Column(Integer, ForeignKey("risk_alerts.id"), index=True)
+    from_status = Column(String(16), default="")
+    to_status = Column(String(16), default="")
+    operator = Column(String(64), default="")  # 人工跟进人 / system
+    note = Column(Text, default="")
+    is_system = Column(Boolean, default=False)
+    created_at = Column(DateTime, default=now)
+
+
+class RiskEvaluation(Base):
+    """三级（黄）升级评估留痕 —— 共情疏导不强制转介，但升级评估机制可见可查
+
+    每次三级评估写一条：trajectory 记录近 3 次风险轨迹（如 [3,3,2]），
+    escalated=True 表示本次已触发升级（矛盾提升/趋势提升至二级）。
+    """
+
+    __tablename__ = "risk_evaluations"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(Integer, ForeignKey("users.id"), index=True)
+    conversation_id = Column(String(32), index=True)
+    level = Column(Integer, nullable=False)  # 评估后最终等级（3 或升级为 2）
+    reason = Column(Text, default="")
+    trajectory = Column(String(64), default="")  # JSON：近3次风险等级，时间正序
+    escalated = Column(Boolean, default=False)
+    created_at = Column(DateTime, default=now)
 
 
 class Hotline(Base):

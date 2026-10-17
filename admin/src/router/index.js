@@ -114,7 +114,11 @@ router.beforeEach(async (to) => {
       const user = await whoami()
       store.setAuth({ token: store.token, ...user })
     } catch {
-      // 401 由 request 拦截器统一清凭证并跳登录
+      // 401 由 request 拦截器统一清凭证；此处直接回登录页，
+      // 不能继续走下方权限判断（权限已被清空，会误报 403）
+      if (!store.isLoggedIn) {
+        return { path: '/login', query: { redirect: to.fullPath } }
+      }
     }
   }
   if (to.meta.permission && !store.has(to.meta.permission)) {

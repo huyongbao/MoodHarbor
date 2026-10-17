@@ -1,0 +1,17 @@
+<!-- 底部导航：白底 + 上描边，图标容器激活态 soft 底 + 蓝字（Demo6 同款） -->
+<view class="tab-bar">
+  <view
+    wx:for="{{list}}"
+    wx:key="pagePath"
+    class="tab-item {{selected === index ? 'active' : ''}}"
+    data-path="{{item.pagePath}}"
+    hover-class="pressed"
+    hover-stay-time="80"
+    bindtap="onTabTap"
+  >
+    <view class="tab-icon">
+      <van-icon name="{{item.icon}}" size="23px" color="{{selected === index ? '#2465b7' : '#8f9aab'}}" />
+    </view>
+    <text class="tab-label">{{item.label}}</text>
+  </view>
+</view>

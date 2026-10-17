@@ -1,0 +1,47 @@
+/* 自定义底部导航 —— 复刻 Demo6 .bottom-nav（px 值 ×2 → rpx） */
+.tab-bar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 10;
+  display: flex;
+  padding: 20rpx 40rpx calc(20rpx + env(safe-area-inset-bottom));
+  border-top: 1rpx solid #edf0f5;
+  background: #fff;
+}
+
+.tab-item {
+  width: 33.333%;
+  min-height: 96rpx;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8rpx;
+  color: #8f9aab;
+  font-size: 20rpx;
+  letter-spacing: 1.4rpx;
+}
+
+.tab-icon {
+  width: 100rpx;
+  height: 56rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 24rpx;
+}
+
+.tab-item.active {
+  color: #2465b7;
+  font-weight: 600;
+}
+
+.tab-item.active .tab-icon {
+  background: #f0f5fc;
+}
+
+.pressed {
+  opacity: 0.85;
+}

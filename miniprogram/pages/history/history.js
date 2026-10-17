@@ -4,6 +4,10 @@ Page({
   data: { list: [] },
 
   onShow() {
+    // 同步底部导航选中态（倾诉记录 = 第 2 个 tab）
+    if (typeof this.getTabBar === "function" && this.getTabBar()) {
+      this.getTabBar().setData({ selected: 1 });
+    }
     api.getConversations().then((res) => this.setData({ list: res.data || [] }));
   },
 

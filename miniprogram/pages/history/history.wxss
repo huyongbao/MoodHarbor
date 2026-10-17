@@ -1,6 +1,7 @@
 /* history —— 倾诉记录 */
 .sub-view { min-height: 100vh; padding: 26rpx 41rpx 78rpx; box-sizing: border-box; }
 .sub-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 41rpx; }
+.sub-header-left { display: flex; align-items: center; gap: 22rpx; }
 .round-action {
   width: 69rpx; height: 69rpx; display: flex; align-items: center; justify-content: center;
   border: 1rpx solid rgba(52, 88, 78, 0.08); border-radius: 50%; background: #fff; color: #68837b;

@@ -7,7 +7,7 @@
           <span class="conn-dot" :class="wsState" />
           <span class="conn-text">{{ connText }}</span>
           <el-tag size="small" :type="mode === 'mock' ? 'warning' : 'success'" effect="plain">
-            {{ mode === 'mock' ? '模拟推流（后端就绪后自动切换真实通道）' : '实时通道 · 等待后端推流' }}
+            {{ mode === 'mock' ? '模拟推流（预设剧本本地演示）' : '实时通道 · 本机摄像头/麦克风采集' }}
           </el-tag>
           <template v-if="session">
             <el-divider direction="vertical" />
@@ -18,16 +18,24 @@
           </template>
         </div>
         <div class="tb-right">
-          <el-select v-model="selectedScript" style="width: 250px" :disabled="wsState !== 'idle'" placeholder="选择演示场景">
-            <el-option v-for="s in DEBUG_SCRIPTS" :key="s.id" :value="s.id" :label="s.name" />
-          </el-select>
-          <el-button type="primary" :loading="wsState === 'connecting'" :disabled="wsState !== 'idle'" @click="startStream">
-            开始推流
-          </el-button>
-          <el-button :disabled="wsState === 'idle'" @click="stopStream">断开</el-button>
+          <!-- Mock 模式：保留预设剧本演示 -->
+          <template v-if="mode === 'mock'">
+            <el-select v-model="selectedScript" style="width: 250px" :disabled="wsState !== 'idle'" placeholder="选择演示场景">
+              <el-option v-for="s in DEBUG_SCRIPTS" :key="s.id" :value="s.id" :label="s.name" />
+            </el-select>
+            <el-button type="primary" :loading="wsState === 'connecting'" :disabled="wsState !== 'idle'" @click="startStream">
+              开始推流
+            </el-button>
+            <el-button :disabled="wsState === 'idle'" @click="stopStream">断开</el-button>
+          </template>
+          <!-- 真实模式：本机采集，不再依赖小程序推流 -->
+          <template v-else>
+            <el-button type="primary" :loading="starting" :disabled="capturing" @click="startCapture">开启摄像头/麦克风</el-button>
+            <el-button type="danger" plain :disabled="!capturing" @click="stopCapture">结束调试</el-button>
+          </template>
         </div>
       </div>
-      <div class="script-desc muted">{{ currentScript?.desc }}</div>
+      <div v-if="mode === 'mock'" class="script-desc muted">{{ currentScript?.desc }}</div>
     </el-card>
 
     <el-row :gutter="16" class="main-row">
@@ -37,19 +45,22 @@
           <template #header>
             <div class="card-head">
               <span>区域一 · 实时多模态流</span>
-              <span class="muted small">视频 / 表情（Py-Feat）/ 语音转写（FunASR）/ 情感分析（emotion2vec+ · EmoLLM）</span>
+              <span class="muted small">本机采集 / 表情（Py-Feat）/ 语音转写（FunASR）/ 情感分析（emotion2vec+ · EmoLLM）</span>
             </div>
           </template>
 
-          <!-- 视频帧 + 表情联动 -->
+          <!-- 视频预览（本机摄像头）+ 表情联动 -->
           <div class="video-box">
-            <img v-if="videoFrame" :src="videoFrame" class="video-frame" alt="用户实时视频帧" />
-            <div v-else class="video-standby">
+            <video v-show="capturing" ref="videoRef" class="video-frame" autoplay playsinline muted />
+            <img v-if="!capturing && videoFrame" :src="videoFrame" class="video-frame" alt="实时视频帧" />
+            <div v-if="!capturing && !videoFrame" class="video-standby">
               <p class="standby-title">待机中</p>
-              <p class="muted">选择场景后点击「开始推流」，实时接收小程序端用户的倾诉画面与分析数据</p>
+              <p class="muted">
+                {{ mode === 'mock' ? '选择场景后点击「开始推流」，查看模拟推流演示' : '点击「开启摄像头/麦克风」授权本机采集，验证四个算法实时分析与大模型矛盾提醒' }}
+              </p>
             </div>
-            <div v-if="videoFrame" class="video-overlay">
-              <span v-if="session && !session.ended" class="live-badge">LIVE</span>
+            <div v-if="capturing || videoFrame" class="video-overlay">
+              <span v-if="capturing || (session && !session.ended)" class="live-badge">LIVE</span>
               <el-tag v-if="modality.facial" :type="emotionTagType(modality.facial.emotion)" effect="dark" size="small">
                 表情：{{ EMOTION_LABELS[modality.facial.emotion] }} {{ pct(modality.facial.confidence) }}
               </el-tag>
@@ -131,9 +142,30 @@
           <template #header>
             <div class="card-head">
               <span>区域二 · 矛盾分析面板</span>
-              <span class="muted small">PRD 9.2 第5步 · 十二 矛盾校准</span>
+              <span class="muted small">PRD 9.2 第5步 · 十二 矛盾校准 · 大模型言行一致性</span>
             </div>
           </template>
+
+          <!-- 大模型言行一致性分析（三模态齐备后异步推送；LLM 不可用时规则兜底并标注来源） -->
+          <el-alert
+            v-if="llmAnalysis"
+            class="llm-alert"
+            :closable="false"
+            :type="llmAnalysis.contradictory ? 'error' : 'success'"
+            show-icon
+          >
+            <template #title>
+              <span>
+                {{ llmAnalysis.contradictory ? '大模型矛盾提醒 · 言行不一致' : '大模型一致性分析 · 未检出矛盾' }}
+                <el-tag size="small" effect="plain" style="margin-left: 8px">
+                  {{ llmAnalysis.source === 'llm' ? '大模型分析' : '规则兜底（大模型不可用）' }}
+                </el-tag>
+              </span>
+            </template>
+            <span class="small" :class="llmAnalysis.contradictory ? 'contra-text' : 'muted'">
+              {{ llmAnalysis.explanation || '——' }}（{{ llmAnalysis.time }}）
+            </span>
+          </el-alert>
 
           <!-- 最新融合结论 -->
           <div v-if="latest" class="verdict" :class="{ contradict: !latest.final.consistent }">
@@ -146,7 +178,7 @@
             <span class="muted">融合置信度 {{ pct(latest.final.confidence) }}</span>
           </div>
           <div v-else class="verdict verdict-empty">
-            <span class="muted">推流开始后，每句完整转写将在这里展示完整判定链</span>
+            <span class="muted">本机采集开始后，每句完整转写将在这里展示完整判定链</span>
           </div>
 
           <!-- 会话统计 -->
@@ -250,6 +282,8 @@ import { ElMessage } from 'element-plus'
 import { evalRisk, getDebugPresetCases } from '@/api/admin'
 import { RISK_LEVELS, INTERVENTION_TYPES } from '@/constants/risk'
 import { DEBUG_SCRIPTS, EMOTION_LABELS, createDebugWs } from '@/utils/debugWs'
+import { createLocalCapture } from '@/utils/localCapture'
+import request from '@/utils/request'
 
 /* ------------------------------ 推流通道 ------------------------------ */
 const selectedScript = ref('contradiction')
@@ -288,6 +322,7 @@ function fmtTime(ts) {
 
 function resetRuntime() {
   session.value = null
+  llmAnalysis.value = null
   videoFrame.value = ''
   modality.value = { facial: null, voice: null, textEmotion: undefined }
   transcript.value = []
@@ -343,6 +378,11 @@ function handleMessage(msg) {
     if (!msg.final.consistent) {
       ElMessage.warning(`矛盾检出：文本与表情/语音方向不一致，已按 PRD 规则提升至 ${msg.final.riskLevel} 级`)
     }
+  } else if (msg.type === 'contradiction_llm') {
+    llmAnalysis.value = { ...(msg.analysis || {}), time: fmtTime(msg.timestamp) }
+    if (msg.analysis?.contradictory) {
+      ElMessage.warning(`大模型矛盾提醒：${msg.analysis.explanation || '表情/语音与所述内容不一致'}`)
+    }
   } else if (msg.type === 'session_end') {
     if (session.value) session.value.ended = true
     const s = msg.summary || {}
@@ -358,7 +398,62 @@ function stopStream() {
   ws.stop()
   if (session.value) session.value.ended = true
 }
-onUnmounted(() => ws.stop())
+
+/* --------------------------- 本机采集通道（真实模式） --------------------------- */
+const videoRef = ref(null)
+const capturing = ref(false)
+const starting = ref(false)
+const llmAnalysis = ref(null)
+let sessionId = ''
+
+const capture = createLocalCapture({
+  onFrame: (frame) => {
+    if (sessionId) request.post('/mp/debug/stream/frame', { sessionId, frame }).catch(() => {})
+  },
+  onAudioChunk: (audio) => {
+    if (sessionId) request.post('/mp/debug/stream/audio-base64', { sessionId, audio }, { timeout: 60000 }).catch(() => {})
+  }
+})
+
+async function startCapture() {
+  starting.value = true
+  try {
+    resetRuntime()
+    ws.start(selectedScript.value) // 真实模式下剧本参数不生效，仅 mock 模式使用
+    await capture.start(videoRef.value) // 触发浏览器摄像头/麦克风授权
+    const data = await request.post('/mp/debug/stream/start', { conversationId: 'debug_local' })
+    sessionId = data?.sessionId || ''
+    if (!session.value) {
+      session.value = { sessionId, userId: '本机采集', startedAt: Date.now(), ended: false }
+    }
+    capturing.value = true
+    ElMessage.success('本机采集已开启：表情 / 转写 / 语音情感 / 文本情感实时分析中')
+  } catch (e) {
+    capture.stop()
+    ws.stop()
+    const name = e?.name || ''
+    if (name === 'NotAllowedError') ElMessage.error('摄像头/麦克风授权被拒绝，请在浏览器地址栏允许后重试')
+    else if (name === 'NotFoundError') ElMessage.error('未检测到可用的摄像头/麦克风设备')
+    else ElMessage.error(`开启失败：${e?.message || '未知错误'}`)
+  } finally {
+    starting.value = false
+  }
+}
+
+function stopCapture() {
+  capture.stop() // 内部 flush 最后一段不足 5s 的音频（sessionId 尚在，正常上报）
+  const sid = sessionId
+  sessionId = ''
+  if (sid) request.post('/mp/debug/stream/end', { sessionId: sid }).catch(() => {})
+  capturing.value = false
+  ws.stop()
+  if (session.value) session.value.ended = true
+}
+
+onUnmounted(() => {
+  capture.stop()
+  ws.stop()
+})
 
 /* ------------------------------ 单句评测（PRD 9.5） ------------------------------ */
 const legacyOpen = ref([])
@@ -577,6 +672,13 @@ onMounted(async () => {
 }
 
 /* 矛盾分析 */
+.llm-alert {
+  margin-bottom: 10px;
+}
+.contra-text {
+  color: #c45656;
+  font-weight: 600;
+}
 .verdict {
   display: flex;
   align-items: center;

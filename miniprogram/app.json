@@ -1,10 +1,8 @@
 {
   "pages": [
-    "pages/guide/guide",
-    "pages/login/login",
+    "pages/home/home",
     "pages/companion-select/companion-select",
     "pages/profile-setup/profile-setup",
-    "pages/home/home",
     "pages/talk/talk",
     "pages/history/history",
     "pages/history-detail/history-detail",
@@ -12,6 +10,7 @@
     "pages/profile-edit/profile-edit",
     "pages/companion-edit/companion-edit",
     "pages/resources/resources",
+    "pages/breath/breath",
     "pages/hotlines/hotlines",
     "pages/digital-human/digital-human"
   ],
@@ -26,15 +25,18 @@
   "requiredPrivateInfos": [
     "chooseAddress"
   ],
-  "permission": {
-    "scope.record": {
-      "desc": "用于语音倾诉，你的语音仅用于情绪识别与回复"
-    },
-    "scope.camera": {
-      "desc": "用于实时推流调试，管理后台可观察你的表情状态以验证多模态识别"
-    }
-  },
   "style": "v2",
   "sitemapLocation": "sitemap.json",
-  "lazyCodeLoading": "requiredComponents"
+  "lazyCodeLoading": "requiredComponents",
+  "tabBar": {
+    "custom": true,
+    "color": "#8f9aab",
+    "selectedColor": "#2465b7",
+    "backgroundColor": "#ffffff",
+    "list": [
+      { "pagePath": "pages/home/home", "text": "歇会儿" },
+      { "pagePath": "pages/history/history", "text": "倾诉记录" },
+      { "pagePath": "pages/profile/profile", "text": "我的" }
+    ]
+  }
 }

@@ -8,6 +8,10 @@ Page({
   },
 
   onShow() {
+    // 同步底部导航选中态（我的 = 第 3 个 tab）
+    if (typeof this.getTabBar === "function" && this.getTabBar()) {
+      this.getTabBar().setData({ selected: 2 });
+    }
     api.getDigitalHumans().then((res) => {
       const id = wx.getStorageSync("mock_dh_id") || "dh_01";
       const c = (res.data || []).find((d) => d.id === id) || (res.data || [])[0];

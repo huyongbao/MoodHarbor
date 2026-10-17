@@ -28,6 +28,9 @@
  *    { type:'assistant_reply', sessionId, timestamp, text:'...' }
  * 5) 会话结束：
  *    { type:'session_end', sessionId, endedAt, summary:{ rounds, contradictionHits, trendHits, maxLevel } }
+ * 6) 大模型矛盾分析（三模态齐备后异步推送，调试台提醒展示）：
+ *    { type:'contradiction_llm', sessionId, timestamp,
+ *      analysis:{ contradictory:true|false, explanation:'...', source:'llm'|'rule' } }
  *
  * VITE_USE_MOCK=true 时按预设剧本定时模拟上述全部消息（含 PRD 十二矛盾用例自动注入），
  * 矛盾分析引擎按 PRD 9.2 第 5 步 + PRD 十二「矛盾提升 / 趋势提升 / 规则兜底」规则本地实现。
@@ -48,6 +51,28 @@ const DISTRESS = ['sad', 'fear', 'angry']
 const DISTRESS_CONF_THRESHOLD = 0.7
 
 const pct = (v) => `${Math.round(v * 100)}%`
+
+/** Mock 用 · 本地模拟大模型矛盾分析（与后端 analyze_contradiction 的规则兜底同源语义） */
+function localContraAnalysis({ text, facial, voice, asrText = '' }) {
+  const hit = (m) => !!(m && DISTRESS.includes(m.emotion) && m.confidence >= DISTRESS_CONF_THRESHOLD)
+  const facialHit = hit(facial)
+  const voiceHit = hit(voice)
+  const textLv = text ? text.riskLevel : 4
+  if (textLv >= 3 && (facialHit || voiceHit)) {
+    const ch = [
+      facialHit && `面部表情「${EMOTION_LABELS[facial.emotion]}」`,
+      voiceHit && `语音情感「${EMOTION_LABELS[voice.emotion]}」`
+    ]
+      .filter(Boolean)
+      .join('、')
+    return {
+      contradictory: true,
+      explanation: `说「${(asrText || '').slice(0, 12)}」情绪平稳，但${ch}，言行不一致`,
+      source: 'rule'
+    }
+  }
+  return { contradictory: false, explanation: '三模态情绪方向一致，未检出矛盾', source: 'rule' }
+}
 
 /** 极简关键词规则兜底（与后端规则引擎同源语义，仅 Mock 演示用） */
 function ruleFallbackLevel(text = '') {
@@ -497,6 +522,8 @@ export function createDebugWs({ onMessage }) {
           if (result.steps.find((s) => s.key === 'contradiction')?.triggered) contradictionHits++
           if (result.steps.find((s) => s.key === 'trend')?.triggered) trendHits++
           emit({ type: 'contradiction_analysis', sessionId, timestamp: Date.now(), input, steps: result.steps, final: result.final })
+          // 模拟大模型矛盾分析（contradiction_llm 消息，与真实通道契约一致）
+          emit({ type: 'contradiction_llm', sessionId, timestamp: Date.now(), analysis: localContraAnalysis(input) })
           if (step.reply) later(() => emit({ type: 'assistant_reply', sessionId, timestamp: Date.now(), text: step.reply }), 1000)
         }
       }, seqT)

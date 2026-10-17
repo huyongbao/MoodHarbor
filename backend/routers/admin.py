@@ -7,7 +7,7 @@ from datetime import datetime, timedelta
 
 from typing import Optional
 from fastapi import APIRouter, Depends, Query
-from sqlalchemy import func, or_
+from sqlalchemy import case, func, or_
 from sqlalchemy.orm import Session
 
 from auth import create_token, get_current_admin, require_super_admin
@@ -15,8 +15,8 @@ from common import ok, BizError
 from config import LLM_MODEL
 from database import get_db
 from models.entities import (
-    AdminAccount, Role, RiskAlert, User, Conversation, Message,
-    Hotline, SelfHelp, DigitalHuman,
+    AdminAccount, Role, RiskAlert, AlertFollowUp, RiskEvaluation,
+    User, Conversation, Message, Hotline, SelfHelp, DigitalHuman,
 )
 from services import memory_service
 from services.memory_service import Memory
@@ -143,6 +143,7 @@ def dashboard(auth: dict = Depends(get_current_admin), db: Session = Depends(get
     alerts = db.query(RiskAlert).all()
     pending = sum(1 for a in alerts if a.status == "pending")
     lv1_pending = sum(1 for a in alerts if a.level == 1 and a.status == "pending")
+    lv1_open = sum(1 for a in alerts if a.level == 1 and a.status in ("pending", "processing"))
     alert_levels = [
         {"level": "一级", "count": sum(1 for a in alerts if a.level == 1)},
         {"level": "二级", "count": sum(1 for a in alerts if a.level == 2)},
@@ -160,6 +161,7 @@ def dashboard(auth: dict = Depends(get_current_admin), db: Session = Depends(get
         "todayMinutes": today_msgs // 2,
         "pendingAlerts": pending,
         "level1Pending": lv1_pending,
+        "level1Open": lv1_open,  # 红色横幅：未闭环一级预警（待处理+处理中）
         "activeTrend": active_trend,
         "minutesTrend": minutes_trend,
         "emotionDist": emotion_dist,
@@ -278,6 +280,18 @@ def conversation_messages(conv_id: str, auth: dict = Depends(get_current_admin),
 
 
 # ================= 4.5 预警记录 =================
+def _find_alert(db: Session, alert_id) -> Optional[RiskAlert]:
+    """兼容数字 id 与字符串 id（ra_001 → 1）"""
+    if isinstance(alert_id, str) and alert_id.startswith("ra_"):
+        try:
+            alert_id = int(alert_id[3:])
+        except ValueError:
+            return None
+    if isinstance(alert_id, str):
+        return None
+    return db.query(RiskAlert).filter(RiskAlert.id == int(alert_id)).first()
+
+
 @router.get("/risk-alerts")
 def list_alerts(
     level: Optional[str] = Query(default=""),
@@ -297,7 +311,16 @@ def list_alerts(
     if status:
         q = q.filter(RiskAlert.status == status)
     total = q.count()
-    alerts = q.order_by(RiskAlert.created_at.desc()).offset((page - 1) * pageSize).limit(pageSize).all()
+    # 置顶排序：一级优先 → 待处置优先于处理中 → 时间倒序（红警第一时间进入视线）
+    status_rank = case(
+        (RiskAlert.status == "pending", 0),
+        (RiskAlert.status == "processing", 1),
+        else_=2,
+    )
+    alerts = (
+        q.order_by(RiskAlert.level.asc(), status_rank.asc(), RiskAlert.created_at.desc())
+        .offset((page - 1) * pageSize).limit(pageSize).all()
+    )
     users = {u.id: u for u in db.query(User).all()}
     return ok({
         "total": total,
@@ -311,7 +334,10 @@ def list_alerts(
                 "triggerWords": a.trigger_words,
                 "status": a.status,
                 "handledBy": a.handled_by or None,
-                "remark": "",
+                "remark": a.remark or "",
+                "escalatedFrom": a.escalated_from,
+                "escalatedAt": _dt_str(a.escalated_at) if a.escalated_at else None,
+                "escalatedReason": a.escalated_reason or "",
                 "createdAt": _dt_str(a.created_at),
                 "updatedAt": _dt_str(a.updated_at),
             }
@@ -320,27 +346,58 @@ def list_alerts(
     })
 
 
-@router.put("/risk-alerts/{alert_id}")
-def update_alert(alert_id: int, body: dict, auth: dict = Depends(get_current_admin), db: Session = Depends(get_db)):
-    aid = int(alert_id) if isinstance(alert_id, int) else None
-    # 兼容字符串 id：ra_001 → 1
-    if isinstance(alert_id, str) and alert_id.startswith("ra_"):
-        try:
-            aid = int(alert_id[3:])
-        except ValueError:
-            aid = None
-    alert = db.query(RiskAlert).filter(RiskAlert.id == aid).first() if aid else None
+@router.get("/risk-alerts/{alert_id}/followups")
+def get_alert_followups(
+    alert_id, auth: dict = Depends(get_current_admin), db: Session = Depends(get_db)
+):
+    """预警跟进时间线（赛题：后台人工跟进机制留痕，含系统自动升级记录）"""
+    alert = _find_alert(db, alert_id)
     if not alert:
-        # fallback: 按 raw 数字
-        alert = db.query(RiskAlert).filter(RiskAlert.id == int(alert_id) if str(alert_id).isdigit() else -1).first()
+        raise BizError(404, "预警不存在")
+    ups = (
+        db.query(AlertFollowUp)
+        .filter(AlertFollowUp.alert_id == alert.id)
+        .order_by(AlertFollowUp.created_at.desc(), AlertFollowUp.id.desc())
+        .all()
+    )
+    return ok([
+        {
+            "id": f.id,
+            "fromStatus": f.from_status,
+            "toStatus": f.to_status,
+            "operator": f.operator,
+            "isSystem": bool(f.is_system),
+            "note": f.note,
+            "createdAt": _dt_str(f.created_at),
+        }
+        for f in ups
+    ])
+
+
+@router.put("/risk-alerts/{alert_id}")
+def update_alert(alert_id, body: dict, auth: dict = Depends(get_current_admin), db: Session = Depends(get_db)):
+    alert = _find_alert(db, alert_id)
     if not alert:
         raise BizError(404, "预警不存在")
     new_status = body.get("status", "")
+    remark = body.get("remark", "")
+    old_status = alert.status
     if new_status and new_status not in ALERT_TRANSITIONS.get(alert.status, set()):
         raise BizError(400, f"不允许从「{alert.status}」流转到「{new_status}」")
     if new_status:
         alert.status = new_status
         alert.handled_by = body.get("handledBy") or auth["admin"].username
+    if remark:
+        alert.remark = remark  # 跟进备注落库（外呼情况、转介结果）
+    # 人工跟进留痕：状态流转或新增备注均记入时间线
+    if new_status or remark:
+        db.add(AlertFollowUp(
+            alert_id=alert.id,
+            from_status=old_status if new_status else "",
+            to_status=new_status or "",
+            operator=auth["admin"].username,
+            note=remark or f"状态流转 {old_status} → {new_status}",
+        ))
     db.commit()
     return ok({
         "id": f"ra_{alert.id:03d}",
@@ -350,9 +407,51 @@ def update_alert(alert_id: int, body: dict, auth: dict = Depends(get_current_adm
         "triggerWords": alert.trigger_words,
         "status": alert.status,
         "handledBy": alert.handled_by,
-        "remark": body.get("remark", ""),
+        "remark": alert.remark or "",
+        "escalatedFrom": alert.escalated_from,
+        "escalatedAt": _dt_str(alert.escalated_at) if alert.escalated_at else None,
+        "escalatedReason": alert.escalated_reason or "",
         "createdAt": _dt_str(alert.created_at),
         "updatedAt": _dt_str(alert.updated_at),
+    })
+
+
+@router.get("/risk-evaluations")
+def list_risk_evaluations(
+    escalated: Optional[str] = Query(default=""),
+    page: int = Query(default=1, ge=1),
+    pageSize: int = Query(default=10, ge=1),
+    auth: dict = Depends(get_current_admin),
+    db: Session = Depends(get_db),
+):
+    """三级（黄）升级评估观察列表：共情疏导不强制转介，但每次评估留痕可查"""
+    q = db.query(RiskEvaluation)
+    if escalated == "1":
+        q = q.filter(RiskEvaluation.escalated.is_(True))
+    elif escalated == "0":
+        q = q.filter(RiskEvaluation.escalated.is_(False))
+    total = q.count()
+    rows = (
+        q.order_by(RiskEvaluation.created_at.desc())
+        .offset((page - 1) * pageSize).limit(pageSize).all()
+    )
+    users = {u.id: u for u in db.query(User).all()}
+    return ok({
+        "total": total,
+        "list": [
+            {
+                "id": r.id,
+                "userId": r.user_id,
+                "nickname": _mask((users[r.user_id].nickname if r.user_id in users else None) or f"用户{r.user_id}"),
+                "conversationId": r.conversation_id,
+                "level": r.level,
+                "reason": r.reason,
+                "trajectory": json.loads(r.trajectory or "[]"),
+                "escalated": bool(r.escalated),
+                "createdAt": _dt_str(r.created_at),
+            }
+            for r in rows
+        ],
     })
 
 

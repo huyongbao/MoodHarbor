@@ -1,0 +1,125 @@
+/* breath —— 「呼吸一下」一分钟引导呼吸（移植 figma-demo6 breath 屏，px→rpx ×2） */
+page {
+  background: #f7f9fc;
+}
+
+.breath {
+  min-height: 100vh;
+  box-sizing: border-box;
+  padding: 13rpx 41rpx 78rpx;
+}
+
+.pressed { opacity: 0.85; }
+
+/* ---------- 页头（返回钮 + 居中双行标题） ---------- */
+.page-header {
+  height: 88rpx; display: flex; justify-content: space-between; align-items: center;
+  margin-bottom: 14rpx;
+}
+.ph-titles { display: flex; flex-direction: column; align-items: center; }
+.ph-title { color: #35554d; font-size: 26rpx; font-weight: 600; }
+.ph-sub { margin-top: 4rpx; font-size: 19rpx; color: #8793a4; letter-spacing: 1rpx; }
+.header-spacer { width: 68rpx; }
+
+/* ---------- 内容区 ---------- */
+.breath-content {
+  text-align: center;
+  padding: 42rpx 0 60rpx;
+}
+
+.safety-note {
+  display: flex; justify-content: center; align-items: center; gap: 14rpx;
+  border-radius: 18rpx; padding: 22rpx 16rpx;
+  color: #778da6; background: #f0f5fc; font-size: 20rpx;
+  margin-bottom: 70rpx;
+}
+
+.mini-label {
+  display: flex; justify-content: center;
+  font-size: 21rpx; letter-spacing: 2rpx; color: #7b92ae;
+}
+.mini-label.teal { color: #4daaaa; }
+
+.breath-title {
+  margin-top: 26rpx;
+  font-size: 46rpx; font-weight: 600; color: #29384b;
+}
+
+/* ---------- 呼吸主视觉 ---------- */
+.breath-visual {
+  height: 600rpx; position: relative;
+  display: flex; align-items: center; justify-content: center;
+  margin: 20rpx 0;
+}
+.breath-ring {
+  position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
+  border-radius: 50%;
+  background: rgba(106, 207, 199, 0.06);
+  border: 2rpx solid rgba(121, 201, 197, 0.14);
+  transition: transform 4s linear;
+}
+.ring-outer { width: 520rpx; height: 520rpx; }
+.ring-inner {
+  width: 442rpx; height: 442rpx;
+  background: rgba(101, 201, 195, 0.09);
+  border-color: rgba(116, 199, 192, 0.17);
+}
+.breath-core {
+  width: 354rpx; height: 354rpx;
+  background: radial-gradient(circle at 35% 20%, #8bded6, #4dbdb8);
+  border-radius: 50%;
+  box-shadow: 0 24rpx 100rpx rgba(80, 182, 185, 0.16);
+  color: #fff;
+  display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 20rpx;
+  z-index: 1;
+  transition: transform 4s linear;
+}
+.core-strong { font-size: 50rpx; font-weight: 500; letter-spacing: 8rpx; }
+.core-sub { font-size: 20rpx; letter-spacing: 2rpx; }
+
+/* 吸气相：核与内环放大 */
+.breath-visual.running .breath-core { transform: scale(1.14); }
+.breath-visual.running .ring-inner { transform: translate(-50%, -50%) scale(1.12); }
+/* 呼气相：缓缩回（6 秒过渡） */
+.breath-visual.running.exhale .breath-core { transform: scale(0.93); transition-duration: 6s; }
+.breath-visual.running.exhale .ring-inner { transform: translate(-50%, -50%) scale(0.93); transition-duration: 6s; }
+
+/* ---------- 进度 ---------- */
+.breath-progress {
+  display: flex; flex-direction: column; align-items: center; gap: 18rpx;
+  margin-bottom: 56rpx;
+  font-size: 22rpx; color: #8793a4;
+}
+.round-text { font-weight: 400; color: #689492; font-size: 24rpx; }
+.progress-track {
+  height: 8rpx; width: 280rpx; margin: 10rpx auto 0;
+  background: #dcece9; border-radius: 10rpx; overflow: hidden;
+}
+.progress-bar { display: block; height: 100%; background: #5bbdb7; border-radius: 8rpx; }
+
+/* ---------- 按钮 ---------- */
+.btn {
+  width: 100%; min-height: 102rpx; margin-top: 32rpx;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 28rpx;
+  font-size: 32rpx; font-weight: 600; letter-spacing: 1.4rpx;
+}
+.btn.primary {
+  color: #fff;
+  background: linear-gradient(110deg, #ff9a3d, #ff8022);
+  box-shadow: 0 10rpx 26rpx rgba(255, 138, 41, 0.15);
+}
+.btn.secondary {
+  background: #f0f5fc; color: #2465b7;
+}
+.text-button {
+  display: flex; align-items: center; justify-content: center; gap: 14rpx;
+  margin: 22rpx auto; min-height: 80rpx;
+  color: #8793a4; font-size: 24rpx;
+}
+
+/* ---------- 脚注 ---------- */
+.breath-footnote {
+  margin-top: 36rpx;
+  font-size: 22rpx; line-height: 2; color: #8793a4;
+}

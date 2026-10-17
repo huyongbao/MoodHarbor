@@ -1,0 +1,10 @@
+{
+  "description": "Designs mini program pages based on PRD documents, UI guidelines, and reference images to ensure consistent, user-friendly interfaces for app developers.",
+  "robots": {
+    "index": false
+  },
+  "accessibility": {
+    "addBypassLinks": false,
+    "ignoreReducedMotion": false
+  }
+}

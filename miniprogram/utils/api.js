@@ -5,8 +5,8 @@
 const config = require("./config");
 const mock = require("./mock");
 
-// 底层请求：只处理 HTTP + 统一响应结构
-function request(path, options) {
+// 底层请求：只处理 HTTP + 统一响应结构；retried 防止 401 重试死循环
+function request(path, options, retried) {
   const { method = "GET", data = {}, header = {} } = options || {};
   return new Promise((resolve, reject) => {
     if (config.USE_MOCK) {
@@ -24,9 +24,15 @@ function request(path, options) {
         if (res.statusCode === 200 && body.code === 0) {
           resolve({ code: 0, message: body.message, data: body.data });
         } else if (body.code === 401) {
-          // token 失效：清态并重登
+          // token 失效：清态 → 静默重登 → 用新 token 重试原请求（仅一次）
           wx.removeStorageSync("token");
-          login().then(resolve).catch(reject);
+          if (retried) {
+            reject({ code: 401, message: body.message || "登录已失效" });
+            return;
+          }
+          ensureLogin()
+            .then(() => request(path, options, true).then(resolve).catch(reject))
+            .catch(reject);
         } else {
           reject({ code: body.code || res.statusCode, message: body.message || "请求失败" });
         }
@@ -61,9 +67,43 @@ function uploadFile(filePath) {
 
 // ---- 业务接口（PRD 8.2 清单）----
 
-// 登录：POST /auth/wechat-login
+// ---- 登录（PRD 8.1）----
+
+// 真实登录请求：POST /auth/wechat-login
+// 开发者工具调试阶段：后端 WX_LOGIN_MOCK=true，用固定 openid（wx_dev_demo），
+// 不调 wx.login、不获取真实微信 openid
+// 真实联调（后端 WX_LOGIN_MOCK=false）时改回：wx.login 拿临时 code 传入 data
+function doLogin() {
+  return request("/auth/wechat-login", { method: "POST", data: { code: "dev" } });
+}
+
+// 静默登录：无 token 时登录并写入 storage（并发场景只发起一次）
+let _loginPromise = null;
+function ensureLogin() {
+  if (wx.getStorageSync("token")) return Promise.resolve();
+  if (!_loginPromise) {
+    _loginPromise = doLogin()
+      .then((res) => {
+        const token = res.data && res.data.token;
+        if (!token) throw { code: -1, message: "登录失败" };
+        wx.setStorageSync("token", token);
+        _loginPromise = null;
+      })
+      .catch((e) => {
+        _loginPromise = null;
+        throw e;
+      });
+  }
+  return _loginPromise;
+}
+
+// 对外登录（login 页使用）：统一走 ensureLogin，token 已由其写入 storage
 function login() {
-  return request("/auth/wechat-login", { method: "POST", data: {} });
+  return ensureLogin().then(() => ({
+    code: 0,
+    message: "ok",
+    data: { token: wx.getStorageSync("token") },
+  }));
 }
 
 // 初始化状态：GET /user/init-status
@@ -138,6 +178,7 @@ module.exports = {
   request,
   uploadFile,
   login,
+  ensureLogin,
   getInitStatus,
   getDigitalHumans,
   saveDigitalHuman,

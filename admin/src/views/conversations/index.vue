@@ -69,9 +69,12 @@
 
 <script setup>
 import { onMounted, reactive, ref } from 'vue'
+import { useRoute } from 'vue-router'
 import { Search } from '@element-plus/icons-vue'
 import { getConversations, getConversationMessages } from '@/api/admin'
 import { RISK_LEVELS } from '@/constants/risk'
+
+const route = useRoute()
 
 const loading = ref(false)
 const rows = ref([])
@@ -105,7 +108,13 @@ async function openDetail(row) {
   detail.value = await getConversationMessages(row.id)
 }
 
-onMounted(() => load())
+onMounted(() => {
+  load()
+  // 预警页/黄色观察页「对话」按钮带参跳转：直接打开对应会话抽屉
+  if (route.query.conversationId) {
+    openDetail({ id: route.query.conversationId })
+  }
+})
 </script>
 
 <style scoped>

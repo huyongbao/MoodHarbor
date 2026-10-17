@@ -16,6 +16,10 @@ Page({
     });
   },
 
+  goBack() {
+    wx.navigateBack();
+  },
+
   onSelect(e) {
     const id = e.currentTarget.dataset.id;
     const item = this.data.companions.find((c) => c.id === id);

@@ -1,8 +1,16 @@
 // utils/config.js —— 环境配置
 // USE_MOCK = true  → 本地假数据（PRD 8.2 契约的完整 Mock，联调切 false）
-// 后端就绪后把 USE_MOCK 改为 false，BASE_URL 换成 FastAPI 地址
+// 后端就绪后把 USE_MOCK 改为 false
+//
+// HOST 规则（团队协作约定）：
+//   - 微信开发者工具/模拟器：保持 LAN_IP = ""，自动走 127.0.0.1，
+//     永远指向自己电脑上启动的后端，任何人 clone 后无需修改
+//   - 真机预览/调试：临时填自己电脑的局域网 IP（手机与电脑需同一 Wi-Fi），
+//     调试完改回 "" 再提交，避免把个人 IP 带进仓库
 const USE_MOCK = false;
-const BASE_URL = "http://192.168.110.220:8000/api/v1";
+const LAN_IP = "";
+const HOST = LAN_IP || "127.0.0.1";
+const BASE_URL = "http://" + HOST + ":8000/api/v1";
 
 function api(path) {
   return USE_MOCK ? path : BASE_URL + path;

@@ -1,7 +1,23 @@
 <template>
   <div class="page">
+    <!-- 红色预警横幅：存在未闭环一级预警时置顶提醒，点击直达待跟进红警列表 -->
+    <el-alert
+      v-if="level1Open > 0"
+      type="error"
+      :closable="false"
+      class="red-banner"
+      @click="goRedAlerts"
+    >
+      <template #title>
+        <span>
+          红色预警：当前有 {{ level1Open }} 条一级（极高风险）预警未闭环，需立即触发转介并人工跟进
+        </span>
+        <el-button type="danger" size="small" plain style="margin-left: 12px">立即处理</el-button>
+      </template>
+    </el-alert>
+
     <!-- 指标卡 -->
-    <el-row :gutter="16">
+    <el-row :gutter="16" style="margin-top: 12px">
       <el-col v-for="card in statCards" :key="card.label" :span="6">
         <el-card shadow="never" class="stat-card">
           <div class="stat-body">
@@ -53,11 +69,19 @@
 
 <script setup>
 import { h, onBeforeUnmount, onMounted, ref } from 'vue'
+import { useRouter } from 'vue-router'
 import * as echarts from 'echarts'
 import { User, Clock, Bell, Warning } from '@element-plus/icons-vue'
 import { getDashboard } from '@/api/admin'
 
+const router = useRouter()
 const data = ref(null)
+const level1Open = ref(0)
+
+function goRedAlerts() {
+  // 横幅统计口径为 pending+processing，跳转只按等级过滤，避免"跟进中"红警被过滤为空
+  router.push({ path: '/risk-alerts', query: { level: 1 } })
+}
 
 const statCards = ref([
   { label: '今日活跃用户', value: '-', icon: h(User), color: '#4d9de0' },
@@ -143,6 +167,7 @@ onMounted(async () => {
   statCards.value[1].value = data.value.totalUsers
   statCards.value[2].value = data.value.todayMinutes
   statCards.value[3].value = data.value.pendingAlerts
+  level1Open.value = data.value.level1Open || 0
   renderCharts()
   window.addEventListener('resize', onResize)
 })
@@ -154,6 +179,9 @@ onBeforeUnmount(() => {
 </script>
 
 <style scoped>
+.red-banner {
+  cursor: pointer;
+}
 .stat-card :deep(.el-card__body) {
   padding: 18px;
 }

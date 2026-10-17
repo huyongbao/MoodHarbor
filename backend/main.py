@@ -88,6 +88,24 @@ SEED_ADMINS = [
 ]
 
 
+def _ensure_alert_columns():
+    """SQLite 兼容迁移：旧库 risk_alerts 补齐升级链路/备注字段（create_all 不会给已有表加列）"""
+    from sqlalchemy import text
+
+    ddl = [
+        ("remark", "ALTER TABLE risk_alerts ADD COLUMN remark TEXT DEFAULT ''"),
+        ("escalated_from", "ALTER TABLE risk_alerts ADD COLUMN escalated_from INTEGER"),
+        ("escalated_at", "ALTER TABLE risk_alerts ADD COLUMN escalated_at DATETIME"),
+        ("escalated_reason", "ALTER TABLE risk_alerts ADD COLUMN escalated_reason TEXT DEFAULT ''"),
+    ]
+    with engine.connect() as conn:
+        cols = {row[1] for row in conn.execute(text("PRAGMA table_info(risk_alerts)"))}
+        for name, stmt in ddl:
+            if cols and name not in cols:
+                conn.execute(text(stmt))
+        conn.commit()
+
+
 def _preheat_models():
     """后台线程预热多模态模型（FunASR/emotion2vec/Py-Feat），避免首次请求 30s 冷启动"""
     import threading
@@ -108,6 +126,7 @@ def _preheat_models():
 @app.on_event("startup")
 def startup():
     Base.metadata.create_all(bind=engine)
+    _ensure_alert_columns()
     db = SessionLocal()
     try:
         if db.query(entities.DigitalHuman).count() == 0:

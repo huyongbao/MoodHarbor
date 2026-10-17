@@ -1,87 +1,154 @@
-/* home —— 首页仪表盘 */
-@import "../companion-select/companion-select.wxss";
-
-.dashboard { padding: 26rpx 37rpx 78rpx; min-height: 100vh; box-sizing: border-box; }
-
-.dashboard-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 26rpx; }
-
-.home-avatar {
-  width: 78rpx; height: 78rpx; border-radius: 50%; background: transparent;
-  border: 4rpx solid #fff; overflow: hidden; position: relative;
-  box-shadow: 0 9rpx 22rpx rgba(53, 84, 76, 0.12);
+/* home —— Demo6「歇会儿。」首页（蓝渐变 + 橙 CTA） */
+page {
+  background: #194c95;
 }
-.home-avatar .portrait-img { width: 100%; height: 100%; }
 
-/* 倾诉主卡：深绿渐变大卡 */
-.continue-card {
-  position: relative; width: 100%; min-height: 391rpx; padding: 43rpx 34rpx; overflow: hidden;
-  border-radius: 48rpx; background: linear-gradient(145deg, #416f63, #698f83); color: #fff;
-  box-shadow: var(--shadow-hero);
+.home {
+  min-height: 100vh;
+  box-sizing: border-box;
+  overflow: hidden;
+  /* Demo6 .home padding-top 25px×2 + 状态栏（原 safe-top 的 88rpx 偏大，改为源码值） */
+  padding-top: calc(env(safe-area-inset-top) + 50rpx);
+  /* 底部为 custom tabBar 让位（tabBar 高约 156rpx + 安全区） */
+  padding-bottom: calc(env(safe-area-inset-bottom) + 200rpx);
+  background: linear-gradient(166deg, #194c95 0%, #1e5aab 37%, #3379c7 65%, #d8e9fa 88%, #f0f6fd 100%);
 }
-.continue-card::after {
-  content: ""; position: absolute; width: 316rpx; height: 316rpx; right: -47rpx; top: -74rpx;
-  border: 1rpx solid rgba(255, 255, 255, 0.12); border-radius: 50%;
-}
-.continue-copy { position: relative; z-index: 3; width: 70%; }
-.live-pill {
-  display: inline-flex; align-items: center; gap: 9rpx; padding: 9rpx 15rpx;
-  border-radius: 19rpx; background: rgba(255, 255, 255, 0.13); font-size: 17rpx;
-}
-.live-dot { width: 9rpx; height: 9rpx; border-radius: 50%; background: #a9e0b2; }
-.continue-title { margin: 37rpx 0 13rpx; font-size: 37rpx; line-height: 1.45; font-weight: 700; }
-.continue-sub { color: var(--text-on-dark-sub); font-size: 19rpx; }
-.start-pill { margin-top: 34rpx; display: inline-flex; align-items: center; gap: 13rpx; font-size: 21rpx; font-weight: 600; }
 
-.home-companion { position: absolute; z-index: 2; right: -7rpx; bottom: -19rpx; }
-.portrait-img-lg { width: 209rpx; height: 227rpx; border-radius: 69rpx; box-shadow: 0 22rpx 37rpx rgba(26, 57, 49, 0.15); }
+/* 按压反馈（hover-class） */
+.pressed { opacity: 0.85; }
 
-/* 停车提示 */
-.shift-note {
-  margin-top: 21rpx; padding: 22rpx 24rpx; display: flex; gap: 19rpx; align-items: center;
-  border-radius: 30rpx; background: #f1eadf;
+/* ---------- 顶栏 ---------- */
+.home-topline {
+  display: flex; align-items: center; justify-content: space-between;
+  margin: 0 54rpx; color: #d3e4fc;
 }
-.shift-icon { width: 67rpx; height: 67rpx; position: relative; border-radius: 21rpx; background: #fff8ef; }
-.shift-i { position: absolute; width: 34rpx; height: 19rpx; left: 17rpx; top: 17rpx; border: 4rpx solid #c18d5e; border-radius: 19rpx 19rpx 4rpx 4rpx; }
-.shift-b { position: absolute; width: 41rpx; height: 4rpx; left: 13rpx; bottom: 17rpx; background: #c18d5e; }
-.shift-strong { color: #6e5848; font-size: 19rpx; font-weight: 600; }
-.shift-sub { margin-top: 6rpx; color: #a08e7e; font-size: 15rpx; }
+.wordmark {
+  display: flex; align-items: center; gap: 14rpx;
+  font-size: 22rpx; letter-spacing: 4rpx;
+}
+.brand-dot { width: 12rpx; height: 12rpx; background: #a9d7ff; border-radius: 50%; }
+.home-help {
+  width: 68rpx; height: 68rpx; box-sizing: border-box;
+  display: flex; align-items: center; justify-content: center;
+  border: 1rpx solid rgba(255, 255, 255, 0.19); border-radius: 50%; color: #d2e6ff;
+}
 
-/* 分区标题 */
-.section-heading { margin: 37rpx 4rpx 19rpx; display: flex; justify-content: space-between; align-items: baseline; }
-.sh-title { color: #34564d; font-size: 26rpx; font-weight: 700; }
-.sh-sub { color: #9aa5a1; font-size: 15rpx; }
+/* ---------- 品牌区 ---------- */
+.home-brand { position: relative; z-index: 1; padding: 52rpx 60rpx 0; color: #fff; }
+.brand-eyebrow { font-size: 18rpx; letter-spacing: 7rpx; opacity: 0.5; margin-bottom: 10rpx; }
+.home-h1 {
+  font-size: 114rpx; letter-spacing: 4rpx; font-weight: 800; line-height: 1.35;
+  text-shadow: 0 4rpx 6rpx rgba(17, 59, 126, 0.12);
+}
+.title-period { font-size: 88rpx; color: #99c8ff; letter-spacing: -14rpx; }
+.home-slogan { margin-top: 12rpx; font-size: 36rpx; letter-spacing: 3rpx; font-weight: 400; color: #eef6ff; }
 
-/* 快速帮助宫格 */
-.quick-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 19rpx; }
-.quick-item {
-  min-height: 223rpx; padding: 26rpx; display: flex; flex-direction: column; align-items: flex-start;
-  border: 1rpx solid rgba(64, 96, 88, 0.07); border-radius: 37rpx; background: #fff; color: #455f58;
+/* ---------- 主视觉 ---------- */
+.hero-art { position: relative; height: 570rpx; margin-top: 18rpx; }
+.hero-orbit {
+  position: absolute; left: 50%; transform: translateX(-50%);
+  border: 1rpx solid rgba(255, 255, 255, 0.035); border-radius: 50%;
 }
-.quick-icon {
-  width: 73rpx; height: 73rpx; margin-bottom: 22rpx; display: flex; align-items: center; justify-content: center;
-  border-radius: 24rpx; color: #547d72; background: #e4efe9; font-size: 32rpx;
+.orbit-one { width: 520rpx; height: 520rpx; top: 16rpx; background: rgba(106, 180, 244, 0.03); }
+.orbit-two { width: 670rpx; height: 670rpx; top: -54rpx; }
+/* Demo6 BrandArt SVG 原样导出（viewBox 400×330），top 7px→14rpx；宽高按用户要求去掉（image 组件默认 320×240px） */
+.brand-art {
+  position: absolute; z-index: 1; left: 50%; top: 14rpx; transform: translateX(-50%);
 }
-.quick-icon.breathe {
-  width: 34rpx; height: 34rpx; margin: 19rpx; border: 4rpx solid currentColor; border-radius: 50%;
-  box-shadow: 0 0 0 9rpx rgba(82, 125, 113, 0.1);
-}
-.quick-icon.memory { background: #f3e7d9; color: #b47f54; }
-.quick-strong { font-size: 21rpx; font-weight: 600; }
-.quick-sub { margin-top: 7rpx; color: #9aa4a1; font-size: 15rpx; }
 
-/* 援助热线条 */
-.help-strip {
-  width: 100%; margin-top: 19rpx; padding: 22rpx; display: flex; align-items: center; gap: 19rpx;
-  border: 1rpx solid rgba(169, 103, 77, 0.08); border-radius: 34rpx; background: #fff6f1; color: #b0a09a;
+.topic-bubble {
+  position: absolute; z-index: 2; color: #f2f8ff;
+  background: linear-gradient(130deg, rgba(104, 169, 224, 0.3), rgba(128, 186, 244, 0.16));
+  border: 1rpx solid rgba(178, 214, 243, 0.18);
+  box-shadow: inset 0 2rpx rgba(255, 255, 255, 0.05);
+  border-radius: 48rpx; padding: 20rpx 30rpx;
+  font-size: 30rpx; letter-spacing: 1rpx; white-space: nowrap;
 }
-.help-icon {
-  width: 71rpx; height: 71rpx; display: flex; align-items: center; justify-content: center;
-  border-radius: 22rpx; background: #f3dfd5; color: #a96654; font-size: 30rpx;
+.topic-bubble::after {
+  content: ""; position: absolute; bottom: -14rpx; right: 34rpx;
+  border-top: 16rpx solid rgba(121, 181, 239, 0.33);
+  border-left: 18rpx solid transparent;
+  transform: rotate(-8deg);
 }
-.help-copy { flex: 1; }
-.help-strong { color: #795f56; font-size: 19rpx; font-weight: 600; }
-.help-sub { margin-top: 6rpx; font-size: 15rpx; }
+.bubble-0 { top: 56rpx; left: 50rpx; transform: rotate(-5deg); }
+.bubble-1 { top: 280rpx; left: 28rpx; font-size: 28rpx; transform: rotate(-3deg); }
+.bubble-2 { top: 10rpx; right: 52rpx; transform: rotate(4deg); }
+.bubble-3 {
+  top: 388rpx; right: 28rpx; font-size: 26rpx; transform: rotate(2deg);
+  background: linear-gradient(130deg, rgba(197, 216, 184, 0.3), rgba(197, 213, 236, 0.24));
+}
+.hero-caption {
+  position: absolute; bottom: 30rpx; left: 0; right: 0;
+  display: flex; align-items: center; justify-content: center; gap: 20rpx;
+  color: #d2e8ff; font-size: 22rpx; letter-spacing: 4rpx;
+}
+.cap-line { width: 38rpx; height: 2rpx; background: rgba(175, 213, 246, 0.33); }
 
+/* ---------- 倾诉主卡 ---------- */
+.home-cards { position: relative; z-index: 3; padding: 46rpx 40rpx 26rpx; }
+.talk-card {
+  padding: 36rpx 46rpx 40rpx; color: #29384b;
+  background: #fff; border-radius: 44rpx;
+  box-shadow: 0 16rpx 50rpx rgba(15, 67, 138, 0.125);
+  border: 1rpx solid rgba(255, 255, 255, 0.6);
+}
+.talk-card-top {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 18rpx; color: #9fb6cf;
+}
+.mini-label { display: flex; align-items: center; gap: 12rpx; font-size: 22rpx; letter-spacing: 2rpx; color: #7b92ae; }
+.mini-dot { width: 10rpx; height: 10rpx; border-radius: 50%; background: #6b9cce; }
+.talk-h2 { font-size: 48rpx; font-weight: 700; letter-spacing: 1rpx; }
+.talk-p { margin-top: 14rpx; font-size: 26rpx; color: #8793a4; }
+.talk-cta {
+  margin-top: 40rpx; min-height: 106rpx; padding: 0 36rpx;
+  display: flex; align-items: center; gap: 18rpx;
+  border-radius: 26rpx; color: #fff;
+  background: linear-gradient(110deg, #ff9a3d, #ff8022);
+  box-shadow: 0 10rpx 26rpx rgba(255, 138, 41, 0.15);
+  font-size: 36rpx; font-weight: 600; letter-spacing: 1.4rpx;
+}
+/* 图三对齐：左右图标贴边、文字绝对居中（两侧等宽撑开，不依赖 van-icon margin） */
+.cta-side { flex: 1; display: flex; align-items: center; }
+.cta-side-right { justify-content: flex-end; }
+
+/* ---------- 快捷功能三列 ---------- */
+.feature-card {
+  display: flex; margin-top: 32rpx; padding: 40rpx 0 34rpx;
+  background: #fff; border-radius: 38rpx;
+  box-shadow: 0 14rpx 46rpx rgba(23, 60, 115, 0.07);
+}
+.feature-item {
+  width: 33.333%; position: relative;
+  display: flex; flex-direction: column; align-items: center; gap: 14rpx;
+}
+.feature-item.has-line::before {
+  content: ""; position: absolute; width: 2rpx; left: 0; top: 18rpx; bottom: 18rpx;
+  background: #edf0f5;
+}
+.feature-icon {
+  width: 96rpx; height: 86rpx; margin-bottom: 4rpx;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 30rpx;
+}
+.fi-0 { color: #4b93d0; background: #eef6ff; }
+.fi-1 { color: #3cadb2; background: #eaf9f7; }
+.fi-2 { color: #547aa9; background: #f0f4fa; }
+.fi-img { width: 30px; height: 30px; }
+.fi-strong { font-size: 30rpx; font-weight: 600; color: #29384b; }
+.fi-sub { font-size: 20rpx; letter-spacing: 1rpx; color: #8793a4; }
+
+/* ---------- 页脚 ---------- */
+.home-bottom {
+  margin-top: 42rpx;
+  display: flex; align-items: center; justify-content: center; gap: 12rpx;
+  color: #6b86a6; font-size: 22rpx; letter-spacing: 2rpx;
+}
+.home-privacy {
+  margin: 18rpx auto 0;
+  display: flex; align-items: center; justify-content: center; gap: 8rpx;
+  color: #879bb3; font-size: 20rpx;
+}
 /* 数字人预载隐藏 web-view（1rpx 不可见，仅预热 SDK 资源缓存） */
 .preload-webview {
   position: fixed;

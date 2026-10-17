@@ -1,69 +1,74 @@
-<view class="dashboard safe-top">
-  <!-- 头部问候 -->
-  <view class="dashboard-header">
-    <view>
-      <view class="eyebrow">{{greeting}}</view>
-      <view class="page-title">今天辛苦了</view>
-    </view>
-    <view class="home-avatar" bindtap="goProfile">
-      <image class="portrait-img" src="{{companion.avatarUrl}}" mode="aspectFill" />
+<view class="home">
+  <!-- 顶栏：品牌字标 + 关于/我的 -->
+  <view class="home-topline">
+    <view class="wordmark"><view class="brand-dot" />路上的情绪补给站</view>
+    <view class="home-help" hover-class="pressed" bindtap="goProfile">
+      <van-icon name="info-o" size="19px" />
     </view>
   </view>
 
-  <!-- 倾诉主卡 -->
-  <view class="continue-card" bindtap="goTalk">
-    <view class="continue-copy">
-      <view class="live-pill"><view class="live-dot"></view>{{companion.name || "小愈"}} 在线</view>
-      <view class="continue-title">有话想说，就来坐一会儿</view>
-      <view class="continue-sub">不用组织语言，想到哪儿说到哪儿</view>
-      <view class="start-pill"><van-icon name="audio" size="15px" /> 开始倾诉</view>
-    </view>
-    <view class="home-companion">
-      <image class="portrait-img-lg" src="{{companion.avatarUrl}}" mode="aspectFill" />
-    </view>
+  <!-- 品牌区 -->
+  <view class="home-brand">
+    <view class="brand-eyebrow">{{greeting}}</view>
+    <view class="home-h1">歇会儿<text class="title-period">。</text></view>
+    <view class="home-slogan">先停一分钟，心里别硬扛</view>
   </view>
 
-  <!-- 停车安全提示 -->
-  <view class="shift-note">
-    <view class="shift-icon">
-      <view class="shift-i"></view>
-      <view class="shift-b"></view>
-    </view>
-    <view class="shift-copy">
-      <view class="shift-strong">先照顾好自己，再继续出发</view>
-      <view class="shift-sub">短暂停靠时，请先确认车辆已停稳</view>
-    </view>
+  <!-- 主视觉：BrandArt 插画 + 话题气泡 -->
+  <view class="hero-art">
+    <view class="hero-orbit orbit-one" />
+    <view class="hero-orbit orbit-two" />
+    <image class="brand-art" src="/images/brand-art.png" mode="aspectFit" />
+    <view
+      wx:for="{{topics}}"
+      wx:key="*this"
+      class="topic-bubble bubble-{{index}}"
+      hover-class="pressed"
+      bindtap="goTalk"
+    >{{item}}</view>
+    <view class="hero-caption"><text class="cap-line" />这一站，为自己停一下<text class="cap-line" /></view>
   </view>
 
-  <!-- 快速帮助 -->
-  <view class="section-heading">
-    <view class="sh-title">快速帮助</view>
-    <view class="sh-sub">一步就能找到</view>
-  </view>
-  <view class="quick-grid">
-    <view class="quick-item" bindtap="goResources">
-      <view class="quick-icon breathe"></view>
-      <view class="quick-strong">放松一下</view>
-      <view class="quick-sub">3 分钟舒缓紧绷</view>
+  <!-- 倾诉主卡 + 快捷功能 -->
+  <view class="home-cards">
+    <view class="talk-card">
+      <view class="talk-card-top">
+        <view class="mini-label"><text class="mini-dot" />随时想说，随时都在</view>
+        <van-icon name="chat-o" size="23px" />
+      </view>
+      <view class="talk-h2">今天遇到什么事？</view>
+      <view class="talk-p">不必一个人消化，来这儿说说。</view>
+      <view class="talk-cta" hover-class="pressed" bindtap="goTalk">
+        <view class="cta-side"><van-icon name="chat-o" size="22px" /></view>
+        <text>我想聊聊</text>
+        <view class="cta-side cta-side-right"><van-icon name="arrow" size="20px" /></view>
+      </view>
     </view>
-    <view class="quick-item" bindtap="goHistory">
-      <view class="quick-icon memory">🕘</view>
-      <view class="quick-strong">继续上次</view>
-      <view class="quick-sub">回到之前的对话</view>
-    </view>
-  </view>
 
-  <!-- 援助热线 -->
-  <view class="help-strip" bindtap="goHotlines">
-    <view class="help-icon"><van-icon name="phone" size="18px" /></view>
-    <view class="help-copy">
-      <view class="help-strong">现在特别难熬？</view>
-      <view class="help-sub">专业援助热线随时在这里</view>
+    <view class="feature-card">
+      <view class="feature-item" hover-class="pressed" bindtap="goHotlines">
+        <view class="feature-icon fi-0"><van-icon name="phone-o" size="30px" /></view>
+        <text class="fi-strong">免费援助</text>
+        <text class="fi-sub">随时有人能接</text>
+      </view>
+      <view class="feature-item has-line" hover-class="pressed" bindtap="goBreath">
+        <view class="feature-icon fi-1"><image class="fi-img" src="/images/icon-breath.png" /></view>
+        <text class="fi-strong">呼吸一下</text>
+        <text class="fi-sub">跟着慢慢来</text>
+      </view>
+      <view class="feature-item has-line" hover-class="pressed" bindtap="goStories">
+        <view class="feature-icon fi-2"><image class="fi-img" src="/images/icon-story.png" /></view>
+        <text class="fi-strong">同行故事</text>
+        <text class="fi-sub">有人和你懂</text>
+      </view>
     </view>
-    <van-icon name="arrow" size="14px" custom-style="opacity:.6" />
-  </view>
 
-  <view class="privacy-note"><van-icon name="shield-o" size="13px" /> 你的倾诉已加密保护，不会公开给他人</view>
+    <view class="home-bottom">
+      <van-icon name="shield-o" size="15px" />
+      <text>先停稳车，再安心聊。</text>
+    </view>
+    <view class="home-privacy"><van-icon name="lock" size="12px" /> 你的倾诉已加密保护，不会公开给他人</view>
+  </view>
   <!-- 数字人预载：隐藏 web-view 提前加载 H5 资源（进倾诉页秒载） -->
   <web-view wx:if="{{dhUrl}}" src="{{dhUrl}}" class="preload-webview"></web-view>
 </view>

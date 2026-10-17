@@ -19,17 +19,21 @@ from auth import parse_token
 from common import ok, BizError
 from config import UPLOAD_DIR
 from database import get_db
-from models.entities import User, RiskAlert
+from models.entities import User, RiskAlert, AdminAccount
 from services import audio_service, face_service, memory_service
-from services.llm_provider import generate_reply, build_intervention, ACTION_MAP
+from services.llm_provider import generate_reply, build_intervention, ACTION_MAP, analyze_contradiction
 
 logger = logging.getLogger("debug_ws")
 
 router = APIRouter()
 
 
-# ---------- 鉴权依赖（小程序 JWT → User）----------
-def _get_mp_user(
+# ---------- 鉴权依赖（双 token：小程序 JWT {uid} / 管理端 JWT {aid}）----------
+# 调试链路的预警落库、记忆沉淀都需要 user_id，管理台本机采集统一挂到"调试演示用户"
+DEBUG_ACTOR_OPENID = "admin_debug_actor"
+
+
+def _get_actor(
     authorization: str = Header(default=""),
     db: Session = Depends(get_db),
 ) -> User:
@@ -38,10 +42,21 @@ def _get_mp_user(
     if not authorization.startswith("Bearer "):
         raise _BE(401, "未登录")
     payload = _pt(authorization[7:])
-    u = db.query(User).filter(User.id == payload.get("uid")).first()
-    if not u:
-        raise _BE(401, "用户不存在")
-    return u
+    if payload.get("uid"):
+        u = db.query(User).filter(User.id == payload["uid"]).first()
+        if u:
+            return u
+    if payload.get("aid"):
+        admin = db.query(AdminAccount).filter(AdminAccount.id == payload["aid"]).first()
+        if admin:
+            u = db.query(User).filter(User.openid == DEBUG_ACTOR_OPENID).first()
+            if not u:
+                u = User(openid=DEBUG_ACTOR_OPENID, nickname="调试演示用户")
+                db.add(u)
+                db.commit()
+                db.refresh(u)
+            return u
+    raise _BE(401, "用户不存在")
 
 
 # ---------- WS 连接池（管理台观众）----------
@@ -110,7 +125,7 @@ async def debug_multimodal_ws(websocket: WebSocket):
 # ================= 小程序上报端点（HTTP 分片）=================
 # 会话开始：POST /mp/debug/stream/start {conversationId}
 @router.post("/mp/debug/stream/start")
-def stream_start(body: dict, user: User = Depends(_get_mp_user), db: Session = Depends(get_db)):
+def stream_start(body: dict, user: User = Depends(_get_actor), db: Session = Depends(get_db)):
     session_id = "s_dbg_" + uuid.uuid4().hex[:8]
     _sessions[session_id] = {
         "userId": user.id,
@@ -136,7 +151,7 @@ def stream_start(body: dict, user: User = Depends(_get_mp_user), db: Session = D
 
 # 关键帧上报：POST /mp/debug/stream/frame {sessionId, frame(base64 jpg)}
 @router.post("/mp/debug/stream/frame")
-async def stream_frame(body: dict, user: User = Depends(_get_mp_user)):
+async def stream_frame(body: dict, user: User = Depends(_get_actor)):
     sess = _get_session(body.get("sessionId", ""))
     frame_b64 = (body.get("frame") or "").split(",")[-1]  # 兼容 dataURL
     if not frame_b64:
@@ -187,7 +202,7 @@ async def stream_frame(body: dict, user: User = Depends(_get_mp_user)):
 # 后端做 ASR 转写 + emotion2vec 语音情感，广播 voice/asr 模态（契约 4.12）
 # ★ 完成后自动触发完整判定链（文本风险+语音+表情融合 → 矛盾分析 → 数字人回应）
 @router.post("/mp/debug/stream/audio-base64")
-async def stream_audio_b64(body: dict, user: User = Depends(_get_mp_user), db: Session = Depends(get_db)):
+async def stream_audio_b64(body: dict, user: User = Depends(_get_actor), db: Session = Depends(get_db)):
     sess = _get_session(body.get("sessionId", ""))
     audio_b64 = body.get("audio", "")
     if not sess or not audio_b64:
@@ -259,6 +274,20 @@ async def _run_judgment_chain(session_id: str, sess: dict, text: str, user, db):
                   "confidence": result["confidence"]},
     })
 
+    # 2.5 大模型矛盾分析（三模态齐备时）：LLM 判断言行是否一致，完成后异步广播 contradiction_llm
+    #     不阻塞判定链主流程；LLM 不可用时 analyze_contradiction 内部走规则兜底（source='rule'）
+    if facial and voice and text:
+        async def _llm_contra_task():
+            try:
+                analysis = await analyze_contradiction(text, result["riskLevel"], facial, voice)
+                await _broadcast({
+                    "type": "contradiction_llm", "sessionId": session_id,
+                    "timestamp": _now_ms(), "analysis": analysis,
+                })
+            except Exception as e:
+                logger.warning(f"LLM 矛盾分析失败: {e}")
+        asyncio.create_task(_llm_contra_task())
+
     # 3. 落库：记忆 + 一二级预警
     memory_service.add(db, user.id, sess.get("conversationId", ""), text, final_level)
     if final_level in (1, 2):
@@ -276,7 +305,7 @@ async def _run_judgment_chain(session_id: str, sess: dict, text: str, user, db):
 
 # 文本/ASR 最终句上报：POST /mp/debug/stream/text {sessionId, text}
 @router.post("/mp/debug/stream/text")
-async def stream_text(body: dict, user: User = Depends(_get_mp_user), db: Session = Depends(get_db)):
+async def stream_text(body: dict, user: User = Depends(_get_actor), db: Session = Depends(get_db)):
     session_id = body.get("sessionId", "")
     sess = _get_session(session_id)
     text = body.get("text", "")
@@ -297,7 +326,7 @@ async def stream_text(body: dict, user: User = Depends(_get_mp_user), db: Sessio
 
 # 会话结束：POST /mp/debug/stream/end {sessionId}
 @router.post("/mp/debug/stream/end")
-def stream_end(body: dict, user: User = Depends(_get_mp_user)):
+def stream_end(body: dict, user: User = Depends(_get_actor)):
     session_id = body.get("sessionId", "")
     sess = _sessions.pop(session_id, None)
     if not sess:

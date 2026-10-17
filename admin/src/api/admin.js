@@ -25,6 +25,10 @@ export const getConversationMessages = (id) => request.get(`/admin/conversations
 // ---------- 预警记录 ----------
 export const getRiskAlerts = (params) => request.get('/admin/risk-alerts', { params })
 export const updateRiskAlert = (id, data) => request.put(`/admin/risk-alerts/${id}`, data)
+// 预警跟进时间线（人工状态流转 + 系统自动升级留痕）
+export const getAlertFollowUps = (id) => request.get(`/admin/risk-alerts/${id}/followups`)
+// 三级（黄）升级评估观察列表
+export const getRiskEvaluations = (params) => request.get('/admin/risk-evaluations', { params })
 
 // ---------- 转介干预配置 ----------
 export const getHotlines = () => request.get('/admin/hotlines')

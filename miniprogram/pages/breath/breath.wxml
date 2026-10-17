@@ -1,0 +1,59 @@
+<view class="breath safe-top">
+  <view class="page-header">
+    <van-button custom-class="btn-round" bindtap="goBack" aria-label="返回"><van-icon name="arrow-left" size="20px" /></van-button>
+    <view class="ph-titles">
+      <text class="ph-title">呼吸一下</text>
+      <text class="ph-sub">这一分钟，不用赶路</text>
+    </view>
+    <view class="header-spacer"></view>
+  </view>
+
+  <view class="breath-content">
+    <view class="safety-note">
+      <van-icon name="shield-o" size="17px" />
+      <text>请先停稳车辆，在安全的地方练习</text>
+    </view>
+
+    <view class="mini-label teal">给自己一点喘息的时间</view>
+    <view class="breath-title">{{title}}</view>
+
+    <!-- 呼吸主视觉：双环 + 渐变圆核，吸气放大 / 呼气缩小 -->
+    <view class="breath-visual {{running ? 'running' : ''}} {{exhale ? 'exhale' : ''}}">
+      <view class="breath-ring ring-outer"></view>
+      <view class="breath-ring ring-inner"></view>
+      <view class="breath-core">
+        <van-icon name="{{done ? 'success' : 'smile-o'}}" size="42px" />
+        <text class="core-strong">{{coreLabel}}</text>
+        <text class="core-sub">{{coreSub}}</text>
+      </view>
+    </view>
+
+    <view class="breath-progress">
+      <text>吸气 4 秒 · 呼气 6 秒</text>
+      <text class="round-text">{{roundText}}</text>
+      <view class="progress-track">
+        <view class="progress-bar" style="width: {{progressPercent}}%;"></view>
+      </view>
+    </view>
+
+    <!-- 完成态：回去聊聊 / 回首页 -->
+    <block wx:if="{{done}}">
+      <view class="btn primary" hover-class="pressed" bindtap="goChat">回去聊聊</view>
+      <view class="btn secondary" hover-class="pressed" bindtap="goHome">回首页</view>
+    </block>
+
+    <!-- 进行态：开始 / 暂停 / 继续 + 重新开始 -->
+    <block wx:else>
+      <view class="btn primary" hover-class="pressed" bindtap="onToggle">{{mainBtnText}}</view>
+      <view class="text-button" hover-class="pressed" bindtap="onReset">
+        <van-icon name="replay" size="16px" />
+        重新开始
+      </view>
+    </block>
+
+    <view class="breath-footnote">
+      <view>不用憋气，也不用刻意用力。</view>
+      <view>如果感到不适，停下来正常呼吸就好。</view>
+    </view>
+  </view>
+</view>

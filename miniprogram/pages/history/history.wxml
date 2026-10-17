@@ -1,8 +1,10 @@
 <view class="sub-view safe-top">
   <view class="sub-header">
-    <view>
-      <view class="eyebrow">只属于你的角落</view>
-      <view class="page-title">倾诉记录</view>
+    <view class="sub-header-left">
+      <view>
+        <view class="eyebrow">只属于你的角落</view>
+        <view class="page-title">倾诉记录</view>
+      </view>
     </view>
     <van-button custom-class="round-action" bindtap="onClearAll" aria-label="清空倾诉记录"><van-icon name="delete" size="17px" /></van-button>
   </view>

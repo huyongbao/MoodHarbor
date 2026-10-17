@@ -128,3 +128,80 @@ def build_intervention(level: int, hotlines: list, self_help: list) -> dict:
 
 # digitalHumanAction 枚举映射（PRD 8.2）
 ACTION_MAP = {1: "emergency", 2: "worry", 3: "comfort", 4: "listen"}
+
+
+# ================= 多模态矛盾分析（调试台 · 大模型言行一致性判断）=================
+CONTRADICTION_PROMPT = """你是「情绪树洞」平台的多模态一致性分析引擎。心理疏导场景中，同一时刻采集到用户的三路模态数据，请判断各模态传递的情绪方向是否矛盾。
+
+## 典型矛盾样例
+- 嘴上说"我很好/没事"，但面部表情悲伤或语音低落压抑 → 矛盾（压抑掩饰真实痛苦）
+- 声泪俱下地诉苦，但表情平静甚至微笑 → 矛盾（强颜欢笑）
+- 各模态情绪方向一致（无论好坏）→ 不矛盾
+
+## 输出格式（严格遵守，直接输出 JSON，不要包裹代码块）
+{"contradictory": true或false, "explanation": "不超过50字的中文解释，指出哪些模态之间矛盾"}"""
+
+# 模态标签 → 中文（规则兜底与 LLM 输入共用）
+MODALITY_LABELS = {"happy": "开心", "calm": "平静", "sad": "悲伤", "fear": "恐惧", "angry": "愤怒"}
+
+
+async def analyze_contradiction(text: str, text_risk_level: int, facial: dict, voice: dict) -> dict:
+    """三模态矛盾分析：LLM 判断言行是否一致。返回 {contradictory, explanation, source}
+
+    - source: 'llm' | 'rule'（模型不可用时规则引擎兜底，绝不静默失败）
+    """
+    user_content = "\n".join([
+        "- 说话内容：" + (text or "[无有效语音]"),
+        f"- 文本情感：{text_risk_level} 级（1 最严重 ~ 4 正常）",
+        f"- 面部表情：{MODALITY_LABELS.get(facial.get('emotion'), facial.get('emotion'))}（置信度 {facial.get('confidence')}）",
+        f"- 语音情感：{MODALITY_LABELS.get(voice.get('emotion'), voice.get('emotion'))}（置信度 {voice.get('confidence')}）",
+        "请输出 JSON。",
+    ])
+    try:
+        async with httpx.AsyncClient(timeout=20) as client:
+            resp = await client.post(
+                LLM_BASE_URL.rstrip("/") + "/chat/completions",
+                headers={"Authorization": "Bearer " + LLM_API_KEY},
+                json={
+                    "model": LLM_MODEL,
+                    "messages": [
+                        {"role": "system", "content": CONTRADICTION_PROMPT},
+                        {"role": "user", "content": user_content},
+                    ],
+                    "temperature": 0.2,
+                    # glm-5.3 为推理模型：思考占用 reasoning_content，max_tokens 过小会导致 content 未生成
+                    "max_tokens": 1024,
+                },
+            )
+            resp.raise_for_status()
+            # 推理模型异常时 content 字段可能缺失，主动抛错走规则兜底
+            raw = resp.json()["choices"][0]["message"].get("content") or ""
+            if not raw.strip():
+                raise ValueError("模型未输出 content（思考超限）")
+            parsed = _extract_json(raw)
+            return {
+                "contradictory": bool(parsed.get("contradictory")),
+                "explanation": (parsed.get("explanation") or "").strip()[:100],
+                "source": "llm",
+            }
+    except Exception:
+        return _rule_contradiction(text, text_risk_level, facial, voice)
+
+
+def _rule_contradiction(text: str, text_risk_level: int, facial: dict, voice: dict) -> dict:
+    """规则兜底：低风险文本 × 高痛苦表情/语音（或反向）→ 矛盾，防止 LLM 不可用时提醒缺失"""
+    DISTRESS, THRESH = ("sad", "fear", "angry"), 0.7
+    label = lambda m: MODALITY_LABELS.get(m.get("emotion"), str(m.get("emotion")))
+    distress = [m for m in (facial, voice) if m and m.get("emotion") in DISTRESS and m.get("confidence", 0) >= THRESH]
+    if distress:
+        if text_risk_level >= 3:
+            ch = "、".join(("面部表情" if m is facial else "语音情感") + "为「" + label(m) + "」" for m in distress)
+            return {"contradictory": True,
+                    "explanation": f"说「{(text or '')[:16]}」情绪平稳，但{ch}，言行不一致",
+                    "source": "rule"}
+        return {"contradictory": False, "explanation": "文本与表情/语音情绪方向一致，均为负面", "source": "rule"}
+    if text_risk_level <= 2:
+        return {"contradictory": True,
+                "explanation": "倾诉内容显示高风险痛苦，但表情与语音平静，可能存在掩饰",
+                "source": "rule"}
+    return {"contradictory": False, "explanation": "三模态情绪方向一致，未检出矛盾", "source": "rule"}
