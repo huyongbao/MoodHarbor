@@ -1,33 +1,56 @@
-<view class="detail-view safe-top">
+<view class="page">
+  <!-- 页头（Demo6 .page-header：白底 + 返回 + 居中标题） -->
   <view class="page-header">
-    <van-button custom-class="btn-round" bindtap="onBack" aria-label="返回"><van-icon name="arrow-left" size="20px" /></van-button>
-    <text class="ph-title">更换陪伴者</text>
+    <view class="icon-button" hover-class="pressed" bindtap="onBack">
+      <van-icon name="arrow-left" size="48rpx" />
+    </view>
+    <view class="ph-mid"><text class="ph-title">换一位聊天伙伴</text></view>
     <view class="header-spacer"></view>
   </view>
 
-  <view class="setup-intro standalone">选择让你最放松的声音与陪伴方式。</view>
-
-  <view class="companion-options compact">
-    <view
-      wx:for="{{companions}}"
-      wx:key="id"
-      class="option {{selectedId === item.id ? 'selected' : ''}}"
-      data-id="{{item.id}}"
-      bindtap="onSelect"
-    >
-      <view class="portrait-wrap {{item.className}}">
-        <image class="portrait-img" src="{{item.avatarUrl}}" mode="aspectFill" lazy-load />
-      </view>
-      <view class="option-copy">
-        <view class="option-name">
-          {{item.name}}
-          <view class="option-trait">{{item.trait}}</view>
-        </view>
-        <view class="option-quote">“{{item.quote || '慢慢说，我一直在听'}}”</view>
-      </view>
-      <view class="radio-mark"><view class="radio-dot"></view></view>
+  <view class="content">
+    <!-- 步骤标签（Demo6 .step-label + .step-track，edit 模式第 2 格填充） -->
+    <view class="step-label">
+      <text>你的倾听搭子</text>
+      <view class="step-track"><view class="bar"></view><view class="bar filled"></view></view>
     </view>
-  </view>
 
-  <van-button custom-class="btn-primary page-bottom" bindtap="onConfirm">确认更换</van-button>
+    <view class="section-title">你想和谁聊聊？</view>
+    <view class="intro">没有标准答案，选一个让你自在的。</view>
+
+    <!-- 伙伴卡（Demo6 .partner-card，选中蓝描边 + 浅蓝底 + 蓝色对勾） -->
+    <view class="partner-list">
+      <view
+        wx:for="{{companions}}"
+        wx:key="id"
+        class="partner-card {{selectedId === item.id ? 'selected' : ''}}"
+        data-id="{{item.id}}"
+        hover-class="pressed"
+        bindtap="onSelect"
+      >
+        <view class="portrait">
+          <image class="portrait-img" src="{{item.avatarUrl}}" mode="aspectFill" lazy-load />
+        </view>
+        <view class="pc-copy">
+          <view class="pc-name">
+            {{item.name}}
+            <text class="pc-trait">{{item.trait}}</text>
+          </view>
+          <view class="pc-desc">{{item.quote || '慢慢说，我一直在听'}}</view>
+        </view>
+        <view class="radio {{selectedId === item.id ? 'on' : ''}}">
+          <van-icon wx:if="{{selectedId === item.id}}" name="success" size="28rpx" custom-style="color:#ffffff" />
+        </view>
+      </view>
+    </view>
+
+    <!-- 提示（Demo6 .info-note） -->
+    <view class="info-note">
+      <van-icon name="info-o" size="36rpx" custom-style="color:#88a4c4" />
+      <text class="in-text">伙伴是数字人演示形象，未连接真人服务。你说的话，不需要完美。</text>
+    </view>
+
+    <!-- 确认按钮（Demo6 .button primary 橙渐变） -->
+    <view class="confirm-btn" hover-class="pressed" bindtap="onConfirm">就选这位伙伴</view>
+  </view>
 </view>
