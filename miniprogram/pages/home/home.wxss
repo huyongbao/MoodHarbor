@@ -149,11 +149,5 @@ page {
   display: flex; align-items: center; justify-content: center; gap: 8rpx;
   color: #879bb3; font-size: 20rpx;
 }
-/* 数字人预载隐藏 web-view（1rpx 不可见，仅预热 SDK 资源缓存） */
-.preload-webview {
-  position: fixed;
-  right: 0; bottom: 0;
-  width: 1rpx; height: 1rpx;
-  opacity: 0;
-  pointer-events: none;
-}
+/* 数字人预载隐藏 web-view（1rpx 不可见，仅预热 SDK 资源缓存）——已废弃：
+   web-view 组件会自动铺满整页导致打开即跳转，talk 页自行拉取地址即可 */

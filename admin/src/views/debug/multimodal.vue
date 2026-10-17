@@ -231,55 +231,12 @@
         </el-card>
       </el-col>
     </el-row>
-
-    <!-- PRD 9.5：单句快速评测（文本通道，保留原有能力） -->
-    <el-card shadow="never" class="legacy-card">
-      <el-collapse v-model="legacyOpen">
-        <el-collapse-item name="eval" title="单句快速评测（PRD 9.5 · 文本评测通道，模拟「模型输出 + 规则兜底」链路）">
-          <el-row :gutter="16">
-            <el-col :span="12">
-              <el-form label-width="90px">
-                <el-form-item label="预设用例">
-                  <el-select v-model="selectedCase" placeholder="选择 PRD 测试话术样例" style="width: 100%" @change="applyCase">
-                    <el-option v-for="c in cases" :key="c.id" :value="c.id" :label="`[${c.expect}] ${c.text.slice(0, 20)}…`" />
-                  </el-select>
-                </el-form-item>
-                <el-form-item label="测试语句">
-                  <el-input v-model="evalText" type="textarea" :rows="3" placeholder="输入待评测的用户倾诉语句…" />
-                </el-form-item>
-                <el-form-item>
-                  <el-button type="primary" :loading="evaluating" @click="submitEval">提交评测</el-button>
-                </el-form-item>
-              </el-form>
-            </el-col>
-            <el-col :span="12">
-              <template v-if="evalResult">
-                <el-descriptions :column="1" border size="small">
-                  <el-descriptions-item label="风险等级">
-                    <el-tag :type="RISK_LEVELS[evalResult.riskLevel].type" effect="dark">{{ RISK_LEVELS[evalResult.riskLevel].label }}</el-tag>
-                    <span class="muted" style="margin-left: 8px">置信度 {{ Math.round(evalResult.confidence * 100) }}%</span>
-                  </el-descriptions-item>
-                  <el-descriptions-item label="判定依据">{{ evalResult.reason }}</el-descriptions-item>
-                  <el-descriptions-item label="干预动作">
-                    <el-tag :type="INTERVENTION_TYPES[evalResult.intervention.type]?.type" effect="dark">
-                      {{ INTERVENTION_TYPES[evalResult.intervention.type]?.label || evalResult.intervention.type }}
-                    </el-tag>
-                  </el-descriptions-item>
-                </el-descriptions>
-              </template>
-              <el-empty v-else description="提交语句后查看模型输出" :image-size="56" />
-            </el-col>
-          </el-row>
-        </el-collapse-item>
-      </el-collapse>
-    </el-card>
   </div>
 </template>
 
 <script setup>
-import { computed, onMounted, onUnmounted, ref } from 'vue'
+import { computed, onUnmounted, ref } from 'vue'
 import { ElMessage } from 'element-plus'
-import { evalRisk, getDebugPresetCases } from '@/api/admin'
 import { RISK_LEVELS, INTERVENTION_TYPES } from '@/constants/risk'
 import { DEBUG_SCRIPTS, EMOTION_LABELS, createDebugWs } from '@/utils/debugWs'
 import { createLocalCapture } from '@/utils/localCapture'
@@ -453,40 +410,6 @@ function stopCapture() {
 onUnmounted(() => {
   capture.stop()
   ws.stop()
-})
-
-/* ------------------------------ 单句评测（PRD 9.5） ------------------------------ */
-const legacyOpen = ref([])
-const cases = ref([])
-const selectedCase = ref('')
-const evalText = ref('')
-const evaluating = ref(false)
-const evalResult = ref(null)
-
-function applyCase(id) {
-  const c = cases.value.find((x) => x.id === id)
-  if (c) evalText.value = c.text
-}
-async function submitEval() {
-  if (!evalText.value.trim()) {
-    ElMessage.warning('请输入测试语句')
-    return
-  }
-  evaluating.value = true
-  try {
-    evalResult.value = await evalRisk({ text: evalText.value, inputTypes: ['text'] })
-  } finally {
-    evaluating.value = false
-  }
-}
-
-onMounted(async () => {
-  try {
-    const data = await getDebugPresetCases()
-    cases.value = data?.cases || []
-  } catch {
-    cases.value = []
-  }
 })
 </script>
 
@@ -754,9 +677,5 @@ onMounted(async () => {
 }
 .muted {
   color: #909399;
-}
-
-.legacy-card {
-  margin-top: 16px;
 }
 </style>

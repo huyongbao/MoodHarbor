@@ -6,7 +6,6 @@ Page({
     companion: null,
     greeting: "",
     selfHelp: [],
-    dhUrl: "", // 数字人 H5 预载地址（隐藏 web-view 提前加载 SDK 资源）
     initStatus: null,
     // Demo6 home 屏话题气泡（点击统走 goTalk，talk 页暂不支持话题参数）
     topics: ["超时委屈", "路上奔波", "客户差评", "想找人说说话"],
@@ -46,18 +45,6 @@ Page({
 
     // 自助资源
     api.getSelfHelp().then((res) => this.setData({ selfHelp: res.data || [] }));
-
-    // 数字人预载（问题1优化）：home 页挂 1rpx 隐藏 web-view 静默加载 H5，
-    // SDK 资源（JS/模型）进入 HTTP 缓存；进 talk 页时同 URL 秒载
-    if (!this.data.dhUrl && !app.globalData.dhUrl) {
-      api.request("/digital-human/view").then((res) => {
-        const d = res.data || {};
-        if (d.configured && d.url) {
-          app.globalData.dhUrl = d.url;
-          this.setData({ dhUrl: d.url });
-        }
-      }).catch(() => {});
-    }
   },
 
   goTalk() {
