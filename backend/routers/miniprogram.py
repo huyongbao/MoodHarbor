@@ -401,7 +401,7 @@ def digital_human_view(user: User = Depends(get_current_user), db: Session = Dep
         return ok({"configured": False, "url": ""})
     base = os.getenv("PUBLIC_BASE_URL", "http://192.168.110.220:8000")
     name = "xiaoman" if dh_id == "dh_01" else "zhiyuan"
-    url = f"{base}/digital-human/index.html?appid={cred[0]}&secret={quote(cred[1])}&name={name}"
+    url = f"{base}/digital-human/index.html?appid={cred[0]}&secret={quote(cred[1])}&name={name}&v=3"
     return ok({"configured": True, "url": url, "digitalHumanId": dh_id})
 
 

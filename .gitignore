@@ -32,5 +32,8 @@ backend/uploads/
 admin/dist/
 miniprogram/miniprogram_npm/
 
+# ==== 工具临时产物 ====
+.playwright-mcp/
+
 # ==== 临时文件 ====
 test_cases.json

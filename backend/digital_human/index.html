@@ -144,12 +144,22 @@
     line-height: 1.8; text-shadow: 0 2px 8px rgba(0,25,55,0.6);
   }
   .hint.error { color: #ffb4a6; }
+
+  /* 调试状态条：版本 + 音频探针结果（真机截图即可确认，不依赖 vConsole） */
+  #dbg {
+    position: fixed; left: 8px; top: 8px; z-index: 9999;
+    max-width: 90vw; padding: 4px 8px; border-radius: 6px;
+    background: rgba(0,0,0,0.55); color: #9fe3a6;
+    font: 11px/1.5 Menlo, Consolas, monospace;
+    white-space: pre-wrap; word-break: break-all; pointer-events: none;
+  }
 </style>
 </head>
 <body>
 <!-- 背景层：3D 数字人（上半屏 68%） -->
 <div id="sdk"></div>
 <div class="hint" id="hint">数字人正在唤醒中…</div>
+<div id="dbg">v3 raw_audio</div>
 
 <!-- 前景：数字人区（顶栏 + 字幕/热线卡 + 引导） -->
 <div class="fg-top">
@@ -284,6 +294,106 @@
 
   setHint(dhName + "正在唤醒中…（首次加载约 10-30 秒）");
 
+  // ---- 打招呼状态机 ----
+  // 修复：①旧代码用 onStateChange（Android SDK 回调名，Web SDK 无此回调）→ 永远收不到状态
+  //       ②init.then 同步 speak 恰在连接过渡期，官方 FAQ 明确此时 speak 不生效 → 口播被丢弃
+  //       ③微信 web-view 无用户手势时音频被挂起（autoplay 限制）→ 有字幕没声音
+  // 策略：在线状态(status=0)后才打招呼 + 语音看门狗判定无声 + 首次手势补播
+  var GREET_TEXT = "准备好了就开口，我一直在听。";
+  var greetSent = false;          // 口播是否已发送
+  var voiceHeard = false;         // 是否真正开始播放过语音（onVoiceStateChange start）
+  var greetSilent = false;        // 判定无声，等待首次用户手势补播
+  var conversationStarted = false; // 已开始对话（不再补播打招呼，避免打断回复）
+
+  // ---- 音频自检探针（真机诊断用，结果同时显示在左上角 dbg 状态条，不依赖 vConsole）----
+  // 目的：一次性区分 Android 无声的两类根因
+  //   static-autoplay=BLOCKED → 自动播放被系统拦截（需用户手势）
+  //   static-autoplay=OK 但 sdk-audio 不动 → SDK 音频通道在本机不可用
+  var dbgLines = ["v3 raw_audio"];
+  function dbg(line) {
+    console.log("[audio-probe] " + line);
+    dbgLines.push(line);
+    if (dbgLines.length > 6) dbgLines.shift();
+    var el = document.getElementById("dbg");
+    if (el) el.textContent = dbgLines.join("\n");
+  }
+  var probeStaticDone = false;
+  function probeStaticAudio() {
+    if (probeStaticDone) return;
+    probeStaticDone = true;
+    // 1) 静态 wav 无手势自动播放测试
+    try {
+      var t = new Audio("probe_silence.wav");
+      var p = t.play();
+      if (p && p.then) {
+        p.then(function () { dbg("static-autoplay=OK"); })
+         .catch(function (e) { dbg("static-autoplay=BLOCKED:" + (e && e.name)); });
+      } else {
+        dbg("static-autoplay=legacy-ok");
+      }
+    } catch (e) { dbg("static-autoplay=ERR:" + e); }
+    // 2) AudioContext 状态（raw_audio 通道依赖它，suspended = 被 autoplay 挂起）
+    try {
+      var AC = window.AudioContext || window.webkitAudioContext;
+      if (AC) {
+        var probeCtx = new AC();
+        dbg("audioCtx=" + probeCtx.state);
+        document.addEventListener("touchstart", function () {
+          probeCtx.resume().then(function () {
+            dbg("audioCtx-after-gesture=" + probeCtx.state);
+          });
+        }, { once: true });
+      }
+    } catch (e) { dbg("audioCtx=ERR:" + e); }
+  }
+
+  // 3) SDK 音频元素探测：打招呼 4 秒后检查是否真的在播
+  function probeSdkAudio() {
+    setTimeout(function () {
+      var a = document.getElementById("xmov-avatar-audio");
+      var info = a
+        ? ("sdk-audio paused=" + a.paused + " ct=" + a.currentTime.toFixed(1) + " rs=" + a.readyState + " err=" + (a.error && a.error.code))
+        : "sdk-audio none(raw_audio正常)";
+      dbg(info);
+    }, 4000);
+  }
+
+  function fireGreet() {
+    if (greetSent) return;
+    greetSent = true;
+    window.dhSpeakLog = window.dhSpeakLog || [];
+    window.dhSpeakLog.push({ t: Date.now(), text: "greet", src: "auto" });
+    dbg("greet sent");
+    sdk.speak(GREET_TEXT, true, true);
+    showSubtitle(GREET_TEXT);
+    setHint("");
+    probeStaticAudio();
+    probeSdkAudio();
+    // 看门狗：3.5s 内没收到语音 start → 判定无声（autoplay 挂起 / 过渡期丢弃）
+    setTimeout(function () {
+      if (!voiceHeard && !conversationStarted) greetSilent = true;
+    }, 3500);
+  }
+
+  // 首次 web-view 内用户手势：解锁音频，若打招呼无声则补播
+  function onFirstGesture() {
+    document.removeEventListener("touchstart", onFirstGesture, true);
+    document.removeEventListener("click", onFirstGesture, true);
+    if (greetSilent && !conversationStarted) {
+      greetSilent = false;
+      window.dhSpeakLog.push({ t: Date.now(), text: "greet", src: "gesture-retry" });
+      sdk.speak(GREET_TEXT, true, true);
+      showSubtitle(GREET_TEXT);
+    }
+  }
+  document.addEventListener("touchstart", onFirstGesture, true);
+  document.addEventListener("click", onFirstGesture, true);
+
+  // #back 指令：返回小程序上一页（此前只调用未定义，补定义）
+  function mpBack() {
+    try { wx.miniProgram.navigateBack(); } catch (e) {}
+  }
+
   var sdk = new XmovAvatar({
     containerId: "#sdk",
     appId: appId,
@@ -291,16 +401,34 @@
     gatewayServer: "https://nebula-agent.xingyun3d.com/user/v1/ttsa/session",
     hardwareAcceleration: "prefer-hardware",
     enableLogger: false,
-    onStateChange: function (state) {
+    // 移动端音频通道：raw_audio=true 用 AudioWorklet 播 PCM（官方移动端推荐）；
+    // 默认 false 走 MSE/WebM，Android 微信 webview 的 X5/旧内核不支持 MSE → 有动画没声音
+    config: { raw_audio: true },
+    // 数字人整体状态（数字枚举：0=在线 1=离线 4=关闭 5=可见 6=隐身）
+    onStatusChange: function (status) {
       window.dhStates = window.dhStates || [];
-      window.dhStates.push(String(state) + "@" + Date.now() % 100000);
+      window.dhStates.push(String(status) + "@" + Date.now() % 100000);
       try {
-        wx.miniProgram.postMessage({ data: { type: "dh_state", state: String(state) } });
+        wx.miniProgram.postMessage({ data: { type: "dh_state", state: String(status) } });
       } catch (e) {}
-      if (String(state) === "rendering" || String(state) === "resumed" || String(state) === "interactive_idle") {
-        setHint("");
+      if (status === 0) {
+        // 在线：此刻 speak 才可靠生效（官方 FAQ：过渡期 speak 不生效）
         try { wx.miniProgram.postMessage({ data: { type: "dh_ready" } }); } catch (e) {}
+        fireGreet();
       }
+    },
+    // 渲染管线状态（init/rendering/pausing/paused/resumed/stopped）
+    onRenderChange: function (state) {
+      if (String(state) === "rendering" || String(state) === "resumed") {
+        setHint("");
+      }
+    },
+    // 说话状态（speak_start/speak_end/speak_error）：speak_error 视为无声
+    onSpeakStateChange: function (state) {
+      window.dhSpeakStates = window.dhSpeakStates || [];
+      window.dhSpeakStates.push(String(state) + "@" + Date.now() % 100000);
+      dbg("speak:" + String(state));
+      if (String(state) === "speak_error" && !conversationStarted) greetSilent = true;
     },
     onMessage: function (message) {
       console.warn("SDK message:", message);
@@ -313,6 +441,11 @@
     },
     onNetworkInfo: function (info) { console.log("network:", info); },
     onVoiceStateChange: function (status) {
+      if (String(status) === "start") {
+        voiceHeard = true;
+        greetSilent = false;
+        dbg("voice=start");
+      }
       try { wx.miniProgram.postMessage({ data: { type: "voice_state", status: String(status) } }); } catch (e) {}
     },
   });
@@ -327,6 +460,7 @@
       if ((m = /(?:^|&)speak=([\s\S]+)/.exec(cmd))) {
         var text = m[1];
         if (text) {
+          conversationStarted = true;
           window.dhSpeakLog = window.dhSpeakLog || [];
           window.dhSpeakLog.push({ t: Date.now(), text: text.slice(0, 20) });
           sdk.speak(text, true, true);
@@ -357,10 +491,9 @@
     initDone = true;
     setHint("");
     try { wx.miniProgram.postMessage({ data: { type: "dh_ready" } }); } catch (e) {}
-    // 加载完成：数字人开口说欢迎语（口型动画 + 字幕）
-    var greet = "准备好了就开口，我一直在听。";
-    sdk.speak(greet, true, true);
-    showSubtitle(greet);
+    try { sdk.setVolume(1); } catch (e) {}
+    // 兜底：5s 内没等到在线状态回调（个别版本不回调），仍按原时机打招呼
+    setTimeout(function () { fireGreet(); }, 5000);
   }).catch(function (err) {
     initDone = true;
     setHint("数字人初始化失败：" + (err && (err.message || err)), true);

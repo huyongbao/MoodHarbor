@@ -49,6 +49,15 @@ os.makedirs(UPLOAD_DIR, exist_ok=True)
 from fastapi.staticfiles import StaticFiles as _SMS
 app.mount("/digital-human", _SMS(directory=os.path.join(os.path.dirname(__file__), "digital_human"), html=True), name="digital-human")
 
+# 数字人 H5 强制不缓存（web-view 会缓存静态资源，导致改版不生效、探针日志看不到）
+@app.middleware("http")
+async def _dh_no_cache(request, call_next):
+    resp = await call_next(request)
+    if request.url.path.startswith("/digital-human"):
+        resp.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+        resp.headers["Pragma"] = "no-cache"
+    return resp
+
 app.mount("/uploads", StaticFiles(directory=UPLOAD_DIR), name="uploads")
 
 
