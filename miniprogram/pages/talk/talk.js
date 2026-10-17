@@ -29,11 +29,16 @@ Page({
     api.request("/conversations", { method: "POST" }).then((res) => {
       this.conversationId = (res.data && res.data.conversationId) || "";
     }).catch(() => {});
-    // 数字人地址
-    api.request("/digital-human/view").then((res) => {
-      const d = res.data || {};
-      this.setData({ configured: !!d.configured, dhUrl: d.url || "" });
-    }).catch(() => this.setData({ configured: false }));
+    // 数字人地址（优先用 home 页预取的全局 URL，省一次请求）
+    if (app.globalData.dhUrl) {
+      this.setData({ configured: true, dhUrl: app.globalData.dhUrl });
+    } else {
+      api.request("/digital-human/view").then((res) => {
+        const d = res.data || {};
+        this.setData({ configured: !!d.configured, dhUrl: d.url || "" });
+        if (d.url) app.globalData.dhUrl = d.url;
+      }).catch(() => this.setData({ configured: false }));
+    }
     // 隐藏摄像头表情识别（页面无画面，仅取帧分析）
     this._initHiddenFaceDetect();
   },

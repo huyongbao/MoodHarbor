@@ -64,4 +64,6 @@
   </view>
 
   <view class="privacy-note"><van-icon name="shield-o" size="13px" /> 你的倾诉已加密保护，不会公开给他人</view>
+  <!-- 数字人预载：隐藏 web-view 提前加载 H5 资源（进倾诉页秒载） -->
+  <web-view wx:if="{{dhUrl}}" src="{{dhUrl}}" class="preload-webview"></web-view>
 </view>

@@ -81,3 +81,12 @@
 .help-copy { flex: 1; }
 .help-strong { color: #795f56; font-size: 19rpx; font-weight: 600; }
 .help-sub { margin-top: 6rpx; font-size: 15rpx; }
+
+/* 数字人预载隐藏 web-view（1rpx 不可见，仅预热 SDK 资源缓存） */
+.preload-webview {
+  position: fixed;
+  right: 0; bottom: 0;
+  width: 1rpx; height: 1rpx;
+  opacity: 0;
+  pointer-events: none;
+}

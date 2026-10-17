@@ -7,7 +7,11 @@
 <style>
   html, body { margin: 0; padding: 0; height: 100%; background: #071f3d; overflow: hidden; }
   /* 数字人渲染层（背景，先全身直出看效果） */
-  #sdk { position: fixed; left: 0; top: 0; width: 100vw; height: 68vh; z-index: 0; }
+  #sdk {
+    position: fixed; left: 0; top: 0; width: 100vw; height: 68vh; z-index: 0;
+    display: flex; align-items: center; justify-content: center;
+  }
+  #sdk canvas { width: 100% !important; height: 100% !important; }
 
   /* ============ 前景层（数字人区）============ */
   .fg-top {
@@ -21,15 +25,9 @@
   }
   .fg-top > * { pointer-events: auto; }
 
-  /* 顶栏：返回 + 名字/状态 + 占位 */
-  .topbar { display: flex; align-items: center; justify-content: space-between; }
-  .back-btn {
-    width: 36px; height: 36px; border-radius: 50%;
-    border: 0; background: rgba(7, 31, 61, 0.35); color: rgba(255,255,255,0.9);
-    font-size: 16px; line-height: 36px; text-align: center;
-    backdrop-filter: blur(6px);
-  }
-  .brand { display: flex; flex-direction: column; align-items: center; gap: 4px; flex: 1; }
+  /* 顶栏：名字 + 状态（居中） */
+  .topbar { display: flex; justify-content: center; }
+  .brand { display: flex; flex-direction: column; align-items: center; gap: 4px; }
   .brand-name {
     color: #fff; font-size: 19px; font-weight: 700; letter-spacing: 4px;
     text-shadow: 0 2px 12px rgba(0, 20, 45, 0.6);
@@ -99,11 +97,11 @@
 
   /* ============ 底部白色区：语音转写 ============ */
   .fg-bottom {
-    position: fixed; left: 0; right: 0; bottom: 0; height: 32vh;
+    position: fixed; left: 0; right: 0; bottom: 0; height: auto;
     z-index: 100;
-    background: linear-gradient(180deg, rgba(251, 251, 253, 0), #fbfbfd 18%, #fbfbfd);
-    display: flex; flex-direction: column; align-items: center; justify-content: center;
-    padding: 20px 24px calc(env(safe-area-inset-bottom, 0px) + 92px);
+    background: linear-gradient(180deg, rgba(251, 251, 253, 0), #fbfbfd 24%, #fbfbfd);
+    display: flex; flex-direction: column; align-items: center;
+    padding: 26px 24px calc(env(safe-area-inset-bottom, 0px) + 118px);
     box-sizing: border-box;
     font-family: -apple-system, "PingFang SC", sans-serif;
     pointer-events: none;
@@ -122,7 +120,21 @@
     margin-top: 6px;
     color: #8a8578; font-size: 11px; letter-spacing: 1px;
   }
-  /* 按住说话按钮由小程序 cover-view 原生渲染，H5 预留 92px 安全区 */
+  /* 按钮视觉占位：与小程序 cover-view 按钮同位置同样式（真机被覆盖，工具可见） */
+  .btn-visual {
+    position: fixed;
+    left: 30px; right: 30px;
+    bottom: calc(env(safe-area-inset-bottom, 0px) + 26px);
+    padding: 15px 0;
+    border-radius: 999px;
+    background: linear-gradient(135deg, #f2994a, #e87d2e);
+    color: #fff;
+    font-size: 16px; font-weight: 700; letter-spacing: 3px;
+    text-align: center;
+    box-shadow: 0 12px 30px rgba(230, 120, 40, 0.4);
+    z-index: 90;
+  }
+  .btn-visual-text { pointer-events: none; }
 
   /* ============ 状态提示 ============ */
   .hint {
@@ -141,12 +153,12 @@
 <!-- 前景：数字人区（顶栏 + 字幕/热线卡 + 引导） -->
 <div class="fg-top">
   <div class="topbar">
-    <button class="back-btn" id="back-btn">‹</button>
+    
     <div class="brand">
       <div class="brand-name" id="brand-name">小满</div>
       <div class="brand-state"><div class="brand-dot"></div>正在陪你</div>
     </div>
-    <div class="placeholder"></div>
+    
   </div>
   <div class="mid">
     <!-- 热线处置卡（hash: hotline=show / hotline=hide） -->
@@ -171,15 +183,20 @@
     <!-- 引导文案（初始态） -->
     <div class="guide" id="guide">
       <div class="guide-main">准备好了就开口</div>
-      <div class="guide-sub">这里一次只显示你当前说的一句话<br/>不用组织语言，慢慢说</div>
+      <div class="guide-sub">不用组织语言，慢慢说</div>
     </div>
   </div>
 </div>
 
-<!-- 前景：底部白色区（语音转写：只显示当前一句） -->
+<!-- 前景：底部白色区（语音转写 + 按钮视觉占位） -->
 <div class="fg-bottom">
   <div class="asr-text empty" id="asr-text">松开按钮后，你说的话会出现在这里</div>
-  <div class="asr-hint">只保留当前一句 · 对话加密保护</div>
+  <div class="asr-hint">放心聊，对话加密保护</div>
+  <!-- 按钮视觉占位：真机上被小程序 cover-view 原生按钮精确覆盖（同位置同尺寸），
+       开发者工具里 cover-view 不渲染，此占位保证布局完整可见 -->
+  <div class="btn-visual" id="btn-visual">
+    <span class="btn-visual-text">按住开始说话</span>
+  </div>
 </div>
 
 <script src="https://media.xingyun3d.com/xingyun3d/general/litesdk/xmovAvatar@latest.js"></script>
@@ -213,11 +230,6 @@
     hintEl.style.display = text ? "block" : "none";
   }
 
-  // ---- 返回 ----
-  function mpBack() {
-    try { wx.miniProgram.navigateBack(); } catch (e) { history.back(); }
-  }
-  document.getElementById("back-btn").addEventListener("click", mpBack);
 
   // ---- 热线卡 ----
   var hotlineCard = document.getElementById("hotline-card");
