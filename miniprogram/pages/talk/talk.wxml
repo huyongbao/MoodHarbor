@@ -25,7 +25,7 @@
     <view class="face-status {{faceActive ? 'on' : 'off'}}">{{faceActive ? "● " : ""}}{{faceStatus}}</view>
   </view>
 
-  <!-- 数字人 hero 区（形象图来自管理后台 DigitalHuman.avatarUrl，正式版替换魔珐 SDK liveplayer）-->
+  <!-- 数字人 hero 区（点击进入 3D 实时对话模式：数字人动起来 + 字幕展示） -->
   <view class="hero">
     <view class="aurora aurora-one"></view>
     <view class="aurora aurora-two"></view>

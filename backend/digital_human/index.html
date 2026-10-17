@@ -13,10 +13,43 @@
     line-height: 1.8; z-index: 0;
   }
   .hint.error { color: #a95e50; }
+
+  /* 字幕浮层：数字人说话内容同步展示 */
+  .subtitle {
+    position: fixed; left: 50%; bottom: 9%;
+    transform: translateX(-50%);
+    z-index: 100;
+    display: flex; flex-direction: column; align-items: center; gap: 6px;
+    max-width: 86%;
+    padding: 14px 22px;
+    border-radius: 18px;
+    background: rgba(255, 255, 255, 0.93);
+    box-shadow: 0 8px 24px rgba(35, 64, 57, 0.18);
+    animation: sub-in 0.3s ease-out;
+    font-family: -apple-system, "PingFang SC", sans-serif;
+  }
+  .subtitle-name {
+    font-size: 11px; color: #54786e; font-weight: 700; letter-spacing: 2px;
+  }
+  .subtitle-text {
+    font-size: 15px; color: #33312e; line-height: 1.65; text-align: center;
+    max-height: 88px; overflow: hidden;
+  }
+  @keyframes sub-in {
+    from { opacity: 0; transform: translateX(-50%) translateY(14px); }
+    to { opacity: 1; transform: translateX(-50%) translateY(0); }
+  }
 </style>
 </head>
 <body>
 <div id="sdk"></div>
+
+<!-- 字幕浮层：数字人说话时同步展示对话内容 -->
+<div class="subtitle" id="subtitle" style="display:none">
+  <span class="subtitle-name" id="subtitle-name">小满</span>
+  <span class="subtitle-text" id="subtitle-text"></span>
+</div>
+
 <div class="hint" id="hint">数字人正在唤醒中…</div>
 <script src="https://media.xingyun3d.com/xingyun3d/general/litesdk/xmovAvatar@latest.js"></script>
 <script>
@@ -36,6 +69,7 @@
   var appSecret = qs.get("secret") || "";
   var dhName = qs.get("name") === "zhiyuan" ? "知远" : "小满";
   document.title = dhName + " · 3D 数字人";
+  document.getElementById("subtitle-name").textContent = dhName;
   var hintEl = document.getElementById("hint");
 
   function setHint(text, isError) {
@@ -96,6 +130,17 @@
   // 因此小程序通过 URL hash 变化传递 speak 指令：
   // location.hash = '#speak=' + encodeURIComponent(text)
   var lastHash = "";
+  var subtitleEl = document.getElementById("subtitle");
+  function showSubtitle(text) {
+    if (!subtitleEl) return;
+    document.getElementById("subtitle-text").textContent = text;
+    subtitleEl.style.display = "flex";
+    // 按语速估算显示时长（4s 起步 + 250ms/字）
+    clearTimeout(showSubtitle._t);
+    showSubtitle._t = setTimeout(function () {
+      subtitleEl.style.display = "none";
+    }, Math.min(4000 + text.length * 250, 12000));
+  }
   function checkHash() {
     if (location.hash !== lastHash) {
       lastHash = location.hash;
@@ -104,6 +149,7 @@
         var text = m[1];
         if (text) {
           window.dhSpeakLog = window.dhSpeakLog || []; window.dhSpeakLog.push({t: Date.now(), text: text.slice(0, 20)}); sdk.speak(text, true, true);
+          showSubtitle(text);
           setHint("");
         }
       }

@@ -187,3 +187,36 @@
   font-size: 18rpx; font-weight: 700; letter-spacing: 1rpx;
   box-shadow: 0 4rpx 12rpx rgba(40, 70, 60, 0.3);
 }
+
+/* ================= 3D 数字人实时渲染 + 字幕 ================= */
+/* hero 区整体为 web-view 容器（3D 数字人铺满，背景装饰被覆盖） */
+.dh-webview {
+  position: absolute;
+  left: 0; top: 0; right: 0; bottom: 0;
+  width: 100%; height: 100%;
+  z-index: 10;
+}
+
+/* 字幕条：数字人开口说话时底部同步显示 */
+.dh-subtitle {
+  position: absolute;
+  left: 41rpx; right: 41rpx; bottom: 30rpx;
+  z-index: 20;
+  display: flex; flex-direction: column; align-items: center; gap: 8rpx;
+  padding: 20rpx 34rpx;
+  border-radius: 24rpx;
+  background: rgba(255, 255, 255, 0.92);
+  box-shadow: 0 12rpx 34rpx rgba(35, 64, 57, 0.16);
+  animation: subtitle-in 0.3s ease-out;
+}
+.dh-subtitle-name {
+  font-size: 19rpx; color: #54786e; font-weight: 700; letter-spacing: 2rpx;
+}
+.dh-subtitle-text {
+  font-size: 26rpx; color: #33312e; line-height: 1.6; text-align: center;
+  max-height: 130rpx; overflow: hidden;
+}
+@keyframes subtitle-in {
+  from { opacity: 0; transform: translateY(16rpx); }
+  to { opacity: 1; transform: translateY(0); }
+}

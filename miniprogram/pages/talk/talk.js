@@ -25,8 +25,10 @@ Page({
     debugSessionId: "",
     cameraHint: "",
     scrollInto: "",
-    inputMode: "voice",
-    dh3dAvailable: false,  // 3D 数字人是否已配置           // voice=按住说话（默认）| text=键盘
+    inputMode: "voice",           // voice=按住说话（默认）| text=键盘
+    dh3dAvailable: false,  // 3D 数字人是否已配置
+    dh3dUrl: "",            // 3D 数字人 web-view 地址（空=用静态形象图）
+    subtitle: "",           // 数字人正在说的话（字幕）
     faceActive: false,            // 表情识别运行中
     faceStatus: "未开启",          // 调试状态：未开启/初始化/运行中/受限
     faceLastResult: "",           // 最近一次表情识别结果
@@ -56,7 +58,8 @@ Page({
     this._initFaceDetect();
     // 检查 3D 数字人是否已配置
     api.request("/digital-human/view").then((res) => {
-      this.setData({ dh3dAvailable: !!(res.data && res.data.configured) });
+      const d = res.data || {};
+      this.setData({ dh3dAvailable: !!d.configured, dh3dUrl: d.url || "" });
     }).catch(() => {});
   },
 
@@ -176,6 +179,9 @@ Page({
           msgs[placeholderIdx] = { role: "user", content: d.asrText };
         }
         this.setData({ messages: msgs, sending: false, scrollInto: "msg-bottom" });
+
+        // 3D 数字人模式：驱动数字人开口说这句话 + 字幕同步显示
+        this._speakToDigitalHuman(d.replyText);
 
         // PRD 8.2 映射表：按 intervention.type 呈现
         const iv = d.intervention || { type: "normal", selfHelp: [] };
@@ -398,15 +404,39 @@ Page({
 
   // ================= 3D 数字人（魔珐星云 web-view）=================
   openDigitalHuman(e) {
-    const text = (e && e.currentTarget && e.currentTarget.dataset.text) || "";
+    // 优先 dataset 文本；否则带最后一条 AI 回复（点开数字人立即开口说这句话+字幕）
+    let text = (e && e.currentTarget && e.currentTarget.dataset.text) || "";
+    if (!text) {
+      const msgs = this.data.messages || [];
+      for (let i = msgs.length - 1; i >= 0; i--) {
+        if (msgs[i].role === "ai" && msgs[i].content) { text = msgs[i].content; break; }
+      }
+    }
     wx.navigateTo({
       url: "/pages/digital-human/digital-human" + (text ? "?speak=" + encodeURIComponent(text) : ""),
     });
+  },
+
+  // ================= 3D 数字人说话驱动 + 字幕同步 =================
+  _speakToDigitalHuman(text) {
+    if (!this.data.dh3dAvailable || !this.data.dh3dUrl || !text) return;
+    // 字幕立即上屏（数字人语音由星云 TTS 同步播放）
+    this.setData({ subtitle: text });
+    // web-view hash 桥接：H5 宿主页轮询 #speak= 并调 SDK speak()
+    const base = this.data.dh3dUrl.split("#")[0];
+    this.setData({ dh3dUrl: base + "#speak=" + encodeURIComponent(text) });
+    // 字幕按语速估算时长后淡出（4s 起步 + 250ms/字，上限 12s）
+    if (this._subtitleTimer) clearTimeout(this._subtitleTimer);
+    this._subtitleTimer = setTimeout(
+      () => this.setData({ subtitle: "" }),
+      Math.min(4000 + text.length * 250, 12000)
+    );
   },
 
   onUnload() {
     if (this.data.debugStreaming) this.stopDebugStream();
     if (this.faceTimer) clearInterval(this.faceTimer);
     if (this._faceWatchdog) clearTimeout(this._faceWatchdog);
+    if (this._subtitleTimer) clearTimeout(this._subtitleTimer);
   },
 });
