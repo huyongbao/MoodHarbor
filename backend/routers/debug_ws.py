@@ -185,8 +185,9 @@ async def stream_frame(body: dict, user: User = Depends(_get_mp_user)):
 
 # 音频段上报：POST /mp/debug/stream/audio-base64 {sessionId, audio(base64)}
 # 后端做 ASR 转写 + emotion2vec 语音情感，广播 voice/asr 模态（契约 4.12）
+# ★ 完成后自动触发完整判定链（文本风险+语音+表情融合 → 矛盾分析 → 数字人回应）
 @router.post("/mp/debug/stream/audio-base64")
-async def stream_audio_b64(body: dict, user: User = Depends(_get_mp_user)):
+async def stream_audio_b64(body: dict, user: User = Depends(_get_mp_user), db: Session = Depends(get_db)):
     sess = _get_session(body.get("sessionId", ""))
     audio_b64 = body.get("audio", "")
     if not sess or not audio_b64:
@@ -223,12 +224,54 @@ async def stream_audio_b64(body: dict, user: User = Depends(_get_mp_user)):
         "type": "modality_update", "sessionId": sid, "timestamp": _now_ms(),
         "voice": voice,
     })
-    if asr_out["text"]:
+    text = asr_out.get("text") or ""
+    if text:
         broadcast_sync({
             "type": "modality_update", "sessionId": sid, "timestamp": _now_ms(),
-            "asr": {"text": asr_out["text"], "isFinal": True},
+            "asr": {"text": text, "isFinal": True},
         })
-    return ok({"text": asr_out["text"], "emotion": voice})
+        # ★ ASR 有内容：自动触发完整判定链（语音倾诉 = 一句话全模态分析）
+        await _run_judgment_chain(sid, sess, text, user, db)
+    return ok({"text": text, "emotion": voice})
+
+
+# ---------- 公共判定链：文本风险 + 语音/表情融合 → 矛盾分析 → 预警 → 数字人回应 ----------
+async def _run_judgment_chain(session_id: str, sess: dict, text: str, user, db):
+    """语音/文本倾诉后统一触发：管理台实时看到完整多模态判定。"""
+    # 1. LLM 文本情感 + 记忆趋势
+    trend_summary = memory_service.get_trend(db, user.id, n=10)
+    result = await generate_reply(text, context_summary=trend_summary)
+    text_emotion = {"riskLevel": result["riskLevel"], "confidence": result["confidence"]}
+    broadcast_sync({
+        "type": "modality_update", "sessionId": session_id, "timestamp": _now_ms(),
+        "textEmotion": text_emotion,
+    })
+
+    # 2. 判定链可视化（融合会话内最新 facial/voice）
+    facial = sess.get("facial")
+    voice = sess.get("voice")
+    steps, final_level, consistent = _judgment_chain(result, facial, voice, sess, text, db, user)
+    broadcast_sync({
+        "type": "contradiction_analysis", "sessionId": session_id, "timestamp": _now_ms(),
+        "input": {"text": text_emotion, "facial": facial, "voice": voice, "asrText": text},
+        "steps": steps,
+        "final": {"riskLevel": final_level, "consistent": consistent,
+                  "confidence": result["confidence"]},
+    })
+
+    # 3. 落库：记忆 + 一二级预警
+    memory_service.add(db, user.id, sess.get("conversationId", ""), text, final_level)
+    if final_level in (1, 2):
+        db.add(RiskAlert(user_id=user.id, conversation_id=sess.get("conversationId", ""),
+                         level=final_level, trigger_words=result["reason"][:200]))
+        db.commit()
+
+    # 4. 数字人回应
+    broadcast_sync({
+        "type": "assistant_reply", "sessionId": session_id, "timestamp": _now_ms(),
+        "text": result["replyText"],
+    })
+    return final_level, result
 
 
 # 文本/ASR 最终句上报：POST /mp/debug/stream/text {sessionId, text}
@@ -246,40 +289,8 @@ async def stream_text(body: dict, user: User = Depends(_get_mp_user), db: Sessio
         "asr": {"text": text, "isFinal": True},
     })
 
-    # 2. LLM 文本情感 + 记忆趋势（判定链数据准备）
-    trend_summary = memory_service.get_trend(db, user.id, n=10)
-    result = await generate_reply(text, context_summary=trend_summary)
-    text_emotion = {"riskLevel": result["riskLevel"], "confidence": result["confidence"]}
-    broadcast_sync({
-        "type": "modality_update", "sessionId": session_id, "timestamp": _now_ms(),
-        "textEmotion": text_emotion,
-    })
-
-    # 3. 判定链可视化（契约 4.12 contradiction_analysis）
-    facial = sess.get("facial")
-    voice = sess.get("voice")
-    steps, final_level, consistent = _judgment_chain(result, facial, voice, sess, text, db, user)
-
-    broadcast_sync({
-        "type": "contradiction_analysis", "sessionId": session_id, "timestamp": _now_ms(),
-        "input": {"text": text_emotion, "facial": facial, "voice": voice, "asrText": text},
-        "steps": steps,
-        "final": {"riskLevel": final_level, "consistent": consistent,
-                  "confidence": result["confidence"]},
-    })
-
-    # 4. 落库：记忆 + 一二级预警
-    memory_service.add(db, user.id, sess.get("conversationId", ""), text, final_level)
-    if final_level in (1, 2):
-        db.add(RiskAlert(user_id=user.id, conversation_id=sess.get("conversationId", ""),
-                         level=final_level, trigger_words=result["reason"][:200]))
-        db.commit()
-
-    # 5. 数字人回应
-    broadcast_sync({
-        "type": "assistant_reply", "sessionId": session_id, "timestamp": _now_ms(),
-        "text": result["replyText"],
-    })
+    # 2. 完整判定链（公共函数：文本情感 + 语音/表情融合 + 矛盾分析 + 数字人回应）
+    final_level, result = await _run_judgment_chain(session_id, sess, text, user, db)
     return ok({"riskLevel": final_level, "replyText": result["replyText"],
                "digitalHumanAction": ACTION_MAP[final_level]})
 
