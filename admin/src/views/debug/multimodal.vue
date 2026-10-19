@@ -189,7 +189,7 @@
           </div>
 
           <!-- 判定链时间线 -->
-          <el-scrollbar max-height="430px" class="ana-scroll">
+          <el-scrollbar max-height="580px" class="ana-scroll">
             <el-timeline class="ana-timeline">
               <el-timeline-item
                 v-for="(a, idx) in analyses"
@@ -439,7 +439,7 @@ onUnmounted(() => {
   flex-wrap: wrap;
 }
 .session-meta {
-  font-size: 12px;
+  font-size: 13px;
   line-height: 1.5;
 }
 .tb-right {
@@ -486,7 +486,7 @@ onUnmounted(() => {
   flex-wrap: wrap;
 }
 .small {
-  font-size: 12px;
+  font-size: 14px;
 }
 
 /* 视频 */
@@ -643,10 +643,13 @@ onUnmounted(() => {
   padding-left: 4px;
   padding-right: 4px;
 }
+.ana-timeline :deep(.el-timeline-item__timestamp) {
+  font-size: 14px;
+}
 .ana-card {
   border: 1px solid var(--el-border-color-lighter);
   border-radius: 6px;
-  padding: 10px 12px;
+  padding: 12px 14px;
 }
 .ana-head {
   display: flex;
@@ -657,11 +660,12 @@ onUnmounted(() => {
 .ana-input {
   margin: 8px 0;
   line-height: 1.6;
+  font-size: 14px;
 }
 .step-row {
-  padding: 6px 10px;
+  padding: 8px 12px;
   border-radius: 4px;
-  margin-bottom: 4px;
+  margin-bottom: 6px;
   background: #fafafa;
 }
 .step-row.hit {
@@ -679,7 +683,7 @@ onUnmounted(() => {
   gap: 8px;
 }
 .step-name {
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 600;
   color: #303133;
 }

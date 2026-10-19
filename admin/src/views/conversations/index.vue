@@ -33,7 +33,7 @@
         v-model:current-page="query.page"
         v-model:page-size="query.pageSize"
         :total="total"
-        :page-sizes="[10, 20, 50]"
+        :page-sizes="[10, 15, 20, 50]"
         layout="total, sizes, prev, pager, next"
         class="el-pagination table-pager"
         @current-change="load()"
@@ -79,7 +79,7 @@ const route = useRoute()
 const loading = ref(false)
 const rows = ref([])
 const total = ref(0)
-const query = reactive({ page: 1, pageSize: 10, keyword: '', level: '' })
+const query = reactive({ page: 1, pageSize: 15, keyword: '', level: '' })
 
 async function load(p) {
   if (p) query.page = p
