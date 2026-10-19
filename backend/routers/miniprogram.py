@@ -514,23 +514,66 @@ def self_help_list(db: Session = Depends(get_db)):
 
 
 # ---------- 3D 数字人 web-view 地址：GET /digital-human/view ----------
+# 隧道探活：Quick Tunnel 随时可能断（UDP 被 VPN 掐、进程被回收、域名漂移），
+# 断掉时必须如实告诉小程序 configured=false，让它降级到 2D 对话页，
+# 而不是把一个打不开的 URL 丢给 web-view —— 那样用户看到的就是一片空白。
+# 缓存策略：成功 30s（少打公网），失败 5s（隧道恢复后用户能尽快看到数字人）
+_DH_PROBE_TTL_OK = 30.0
+_DH_PROBE_TTL_FAIL = 5.0
+_dh_probe_cache = {"at": 0.0, "key": "", "ok": False}
+
+
+def _probe_dh_url(url: str, timeout: float = 3.0) -> bool:
+    import time
+    import urllib.request
+
+    now = time.time()
+    if _dh_probe_cache["key"] == url:
+        ttl = _DH_PROBE_TTL_OK if _dh_probe_cache["ok"] else _DH_PROBE_TTL_FAIL
+        if now - _dh_probe_cache["at"] < ttl:
+            return _dh_probe_cache["ok"]
+    alive = False
+    try:
+        req = urllib.request.Request(url, method="GET",
+                                     headers={"User-Agent": "moodharbor-dh-probe"})
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
+            alive = 200 <= resp.status < 400
+    except Exception:
+        alive = False
+    _dh_probe_cache.update({"at": now, "key": url, "ok": alive})
+    return alive
+
+
 @router.get("/digital-human/view")
 def digital_human_view(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     """返回 H5 宿主页完整 URL（含密钥参数）+ 是否已配置。
     按用户当前选择的陪伴者下发对应数字人密钥：
       dh_01=小满（女） dh_02=知远（男）
-    小程序 web-view 直接加载该 URL 即可渲染 3D 数字人。"""
-    from config import DH_CREDENTIALS
+    小程序 web-view 直接加载该 URL 即可渲染 3D 数字人。
+
+    两处与早期版本的关键差异：
+      1. base 走 config.get_public_base_url() 热读，隧道刷新域名后无需重启后端；
+      2. 返回前探活一次，隧道不通就 configured=false，驱动小程序降级兜底。
+    """
+    from config import DH_CREDENTIALS, get_public_base_url
     from urllib.parse import quote
 
     dh_id = user.digital_human_id or "dh_01"
     cred = DH_CREDENTIALS.get(dh_id) or DH_CREDENTIALS.get("dh_01")
     if not cred or not cred[0] or not cred[1]:
-        return ok({"configured": False, "url": ""})
-    base = os.getenv("PUBLIC_BASE_URL", "http://192.168.110.220:8000")
+        return ok({"configured": False, "url": "", "reason": "missing_credentials"})
+
+    base = get_public_base_url()
+    if not base:
+        return ok({"configured": False, "url": "", "reason": "no_public_base_url"})
     name = "xiaoman" if dh_id == "dh_01" else "zhiyuan"
     # v 参数用于破 web-view 缓存：改了 index.html 就 +1
     url = f"{base}/digital-human/index.html?appid={cred[0]}&secret={quote(cred[1])}&name={name}&v=9"
+
+    # 只探 index.html 本身（不带密钥参数），避免把密钥打进探活请求
+    probe_url = f"{base}/digital-human/index.html"
+    if not _probe_dh_url(probe_url):
+        return ok({"configured": False, "url": "", "reason": "tunnel_unreachable"})
     return ok({"configured": True, "url": url, "digitalHumanId": dh_id})
 
 

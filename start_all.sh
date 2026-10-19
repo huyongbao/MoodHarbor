@@ -22,7 +22,9 @@ GREEN='\033[0;32m'; YELLOW='\033[0;33m'; RED='\033[0;31m'; CYAN='\033[0;36m'; MA
 info()  { echo -e "${GREEN}[start]${NC} $1"; }
 fail()  { echo -e "${RED}[start]${NC} $1"; }
 
-# ---- 清理端口上可能残留的旧实例（都是本项目端口，杀掉安全）----
+# ---- 清理残留：本项目端口 + 数字人公网隧道（cloudflared）----
+pkill -f "cloudflared.*localhost:8000" 2>/dev/null && \
+  echo -e "${YELLOW}[start]${NC} 已停止残留的公网隧道进程"
 for P in 8000 5174 5175 5176; do
   PID=$(lsof -nP -iTCP:$P -sTCP:LISTEN -t 2>/dev/null)
   if [ -n "$PID" ]; then
@@ -35,6 +37,8 @@ sleep 1
 cleanup() {
   echo ""
   echo -e "${YELLOW}[start]${NC} 正在停止所有服务…"
+  # 公网隧道（cloudflared）一并收掉，否则下次启动会撞上旧隧道
+  pkill -f "cloudflared.*localhost:8000" 2>/dev/null
   # 两轮：先 TERM 再 KILL（后台管道进程可能忽略 TERM）
   for P in 8000 5174 5175 5176; do
     PID=$(lsof -nP -iTCP:$P -sTCP:LISTEN -t 2>/dev/null)
@@ -81,6 +85,14 @@ if [ "$ok" = "1" ]; then
 else
   fail "❌ 后端 20 秒内未就绪，请查看上方 [backend] 日志定位错误"
 fi
+
+# ---------- 数字人公网隧道（cloudflared → HTTPS 公网地址）----------
+# 必须起：小程序 web-view 只认 https 公网地址，没有它数字人就是一片空白。
+# 隧道默认走 http2（TCP 443）—— 挂 VPN 时 QUIC(UDP) 常被拦，这是踩过的坑。
+info "正在建立数字人公网隧道（约 10~30 秒）…"
+bash "$ROOT/backend/scripts/tunnel.sh" 2>&1 \
+  | awk -v c="$YELLOW" -v n="$NC" '{ printf "%s[tunnel]%s %s\n", c, n, $0; fflush() }' \
+  | tee -a /tmp/moodharbor_tunnel.log
 
 info "全部服务已拉起，日志持续输出中（Ctrl+C 停止）…"
 wait

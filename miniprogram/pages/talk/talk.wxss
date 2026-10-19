@@ -44,6 +44,41 @@ button.hold-talk::after { border: 0; }
   text-align: center;
 }
 
+.fb-btn-ghost {
+  margin-top: 12rpx;
+  padding: 20rpx 0;
+  background: transparent;
+  color: #779189;
+  border: 2rpx solid #cfd6d3;
+  font-size: 26rpx; font-weight: 500;
+}
+
+/* ============ 兜底页 2D 对话（3D 不可用时也能正常倾诉）============ */
+.fb-chat {
+  width: 100%; max-width: 560rpx;
+  display: flex; flex-direction: column; gap: 16rpx;
+  margin-bottom: 8rpx;
+}
+.fb-bubble {
+  padding: 22rpx 26rpx;
+  border-radius: 20rpx;
+  font-size: 27rpx; line-height: 1.7;
+  text-align: left;
+  word-break: break-all;
+}
+.fb-bubble.me {
+  align-self: flex-end;
+  background: #e3ede7; color: #3c4d44;
+  border-bottom-right-radius: 6rpx;
+}
+.fb-bubble.ai {
+  align-self: flex-start;
+  background: #fff; color: #3c4d44;
+  border: 1rpx solid #e8e4dc;
+  border-bottom-left-radius: 6rpx;
+}
+.fb-who { display: block; font-size: 18rpx; color: #a2aaa7; margin-bottom: 6rpx; }
+
 /* ============ 隐藏摄像头（表情识别取帧，页面无画面）============ */
 .hidden-camera {
   position: fixed;

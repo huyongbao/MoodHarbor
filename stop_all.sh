@@ -3,6 +3,12 @@
 # 用法：./stop_all.sh   —— 当 Ctrl+C 后仍有残留、或想不开终端直接清理时使用
 echo "[stop] 停止所有歇会儿服务…"
 STOPPED=0
+# 数字人公网隧道（cloudflared）一并收掉
+if pgrep -f "cloudflared.*localhost:8000" >/dev/null 2>&1; then
+  echo "  公网隧道 → 停止 cloudflared"
+  pkill -f "cloudflared.*localhost:8000" 2>/dev/null
+  STOPPED=1
+fi
 for P in 8000 5174 5175 5176; do
   PID=$(lsof -nP -iTCP:$P -sTCP:LISTEN -t 2>/dev/null)
   if [ -n "$PID" ]; then

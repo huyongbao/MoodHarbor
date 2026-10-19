@@ -14,9 +14,15 @@ const EMERGENCY_HOTLINE = "025-96889910";
 Page({
   data: {
     dhUrl: "",            // 数字人 H5 地址（空 = 未配置，显示兜底）
-    configured: null,     // null=加载中 false=未配置 true=就绪
+    configured: null,     // null=加载中 false=未配置/不可达 true=就绪
     recording: false,
     processing: false,     // 语音上传+分析中（按钮态）
+    canRetry: false,       // 兜底页是否显示「重新加载数字人」
+    asrText: "",           // 兜底页：用户转写
+    replyText: "",         // 兜底页：AI 回复
+    companionName: "小满",  // 兜底页：陪伴者名字
+    fallbackTitle: "3D 数字人未配置",
+    fallbackDesc: "请在 backend/.env 填写 DH_APP_ID_FEMALE / DH_APP_ID_MALE（魔珐星云 xingyun3d.com 创建驱动应用获取）后重启后端",
   },
 
   conversationId: "",
@@ -29,7 +35,9 @@ Page({
     // 导航标题对齐图2：显示当前陪伴者名字（小满 / 知远）
     const companion = app.globalData.companion;
     const dhId = (companion && companion.id) || wx.getStorageSync("mock_dh_id") || "dh_01";
-    wx.setNavigationBarTitle({ title: (companion && companion.name) || (dhId === "dh_02" ? "知远" : "小满") });
+    const dhName = (companion && companion.name) || (dhId === "dh_02" ? "知远" : "小满");
+    wx.setNavigationBarTitle({ title: dhName });
+    this.setData({ companionName: dhName });
     // 隐藏摄像头表情识别（页面无画面，仅取帧分析）
     this._initHiddenFaceDetect();
     // 建会话并把 token + conversationId 带进 H5 地址（H5 内录音直连后端）；
@@ -59,6 +67,15 @@ Page({
         }).catch(() => {});
       }
     }
+    // 兜底页自动恢复：用户切走/再回来时若还是 fallback，5s 间隔重试一次
+    // —— cloudflared 偶尔瞬断或 Quick Tunnel 全网传播延迟，离开再回来就能看到数字人
+    if (this.data.configured === false) {
+      const now = Date.now();
+      if (!this._lastFallbackAt || now - this._lastFallbackAt > 5000) {
+        this._lastFallbackAt = now;
+        this._initWebview();
+      }
+    }
   },
 
   onHide() {
@@ -86,8 +103,47 @@ Page({
     api.request("/digital-human/view").then((res) => {
       const d = res.data || {};
       if (d.url) app.globalData.dhUrl = d.url;
-      this.setData({ configured: !!d.configured, dhUrl: build(d.url || "") });
-    }).catch(() => this.setData({ configured: false }));
+      if (d.configured && d.url) {
+        this.setData({ configured: true, dhUrl: build(d.url) });
+        return;
+      }
+      // 后端已探活过隧道：不通就直接走兜底，不再把死链丢给 web-view
+      this._fallback(d.reason, d.url || app.globalData.dhUrl || "");
+    }).catch(() => this._fallback("network_error", ""));
+  },
+
+  // 降级到 2D 对话页：保留完整语音对话能力，只是没有 3D 形象
+  _fallback(reason, failedUrl) {
+    const map = {
+      tunnel_unreachable: ["3D 数字人暂时连不上", "公网隧道未连通，已切换为语音对话模式，功能不受影响。"],
+      missing_credentials: ["3D 数字人未配置", "请在 backend/.env 填写 DH_APP_ID_FEMALE / DH_APP_ID_MALE（魔珐星云 xingyun3d.com 创建驱动应用获取）后重启后端"],
+      no_public_base_url: ["3D 数字人未配置", "backend/.env 缺少 PUBLIC_BASE_URL，请确认隧道已启动"],
+      network_error: ["连不上服务", "请确认后端已启动（双击桌面「启动歇会儿」）"],
+    };
+    const t = map[reason] || map.network_error;
+    if (failedUrl) this._failedUrl = failedUrl;
+    this._lastFallbackAt = Date.now();  // 记时间戳，onShow 据此节流重试
+    // 清掉 globalData 缓存：否则下次进页面直接复用这个死地址，永远好不了
+    app.globalData.dhUrl = "";
+    this.setData({
+      configured: false,
+      dhUrl: "",                       // 置空让 web-view 卸载，露出兜底页
+      canRetry: true,                  // 兜底页始终显示重试按钮（5s 后也允许自动重试）
+      fallbackTitle: t[0],
+      fallbackDesc: t[1],
+    });
+  },
+
+  onWebviewError() {
+    // web-view 加载失败（隧道断了 / 域名漂移 / 证书问题）：兜住，别白屏
+    this._fallback("tunnel_unreachable", this.data.dhUrl || this._failedUrl || "");
+  },
+
+  onRetryWebview() {
+    // 重新向后端要地址（后端会重新探活）；globalData 先清掉，避免命中旧缓存
+    app.globalData.dhUrl = "";
+    this.setData({ configured: null, dhUrl: "", canRetry: false });
+    this._initWebview();
   },
 
   onUnload() {
@@ -206,11 +262,15 @@ Page({
     }, ms);
 
     // 1. 用户转写显示（统一走 H5 上方字幕卡，说话人显示"您"）
-    if (d.asrText) this.sendHash("asr=" + encodeURIComponent(d.asrText));
+    if (d.asrText) {
+      this.sendHash("asr=" + encodeURIComponent(d.asrText));
+      this.setData({ asrText: d.asrText });   // 兜底页也同步上屏
+    }
 
     // 2. 数字人开口 + 字幕
     const speakAt = d.asrText && d.replyText ? 1000 : 0;
     if (d.replyText) {
+      this.setData({ replyText: d.replyText });
       if (speakAt) later(() => this.sendHash("speak=" + encodeURIComponent(d.replyText)), speakAt);
       else this.sendHash("speak=" + encodeURIComponent(d.replyText));
     }

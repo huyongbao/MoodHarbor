@@ -2,13 +2,27 @@
   <!-- 背景：3D 数字人 H5（数字人 / 字幕 / 按住说话按钮 / 热线卡全部在 H5 内）
        注意：cover-view 只能覆盖 map/video/canvas/camera/live-player/live-pusher，
        不支持覆盖 web-view，所以这里不能再放原生按钮，交互一律由 H5 承担 -->
-  <web-view wx:if="{{dhUrl}}" src="{{dhUrl}}" bindload="onWebviewLoad" bindmessage="onWebviewMessage" class="dh-webview" />
+  <!-- binderror：隧道断了/地址不可达时微信会回调，必须兜住。
+       没有它，web-view 加载失败就是一片空白，用户完全不知道发生了什么 -->
+  <web-view wx:if="{{dhUrl}}" src="{{dhUrl}}" bindload="onWebviewLoad" bindmessage="onWebviewMessage" binderror="onWebviewError" class="dh-webview" />
 
-  <!-- 未配置数字人：兜底提示（保留语音对话能力） -->
+  <!-- 未配置/隧道不可达：兜底页（保留完整语音对话能力，只是没有 3D 形象） -->
   <view wx:if="{{configured === false}}" class="dh-fallback">
-    <text>3D 数字人未配置</text>
-    <text class="fb-sub">请在 backend/.env 填写 DH_APP_ID_FEMALE / DH_APP_ID_MALE\n（魔珐星云 xingyun3d.com 创建驱动应用获取）后重启后端</text>
-    <view class="fb-btn" bindtouchstart="onHoldStart" bindtouchend="onHoldEnd">{{recording ? "松开结束" : "按住开始说话"}}</view>
+    <text>{{fallbackTitle}}</text>
+    <text class="fb-sub">{{fallbackDesc}}</text>
+
+    <!-- 2D 对话：3D 不可用时照样能倾诉、能拿到 AI 回复 -->
+    <view class="fb-chat">
+      <view wx:if="{{asrText}}" class="fb-bubble me">
+        <text class="fb-who">您</text>{{asrText}}
+      </view>
+      <view wx:if="{{replyText}}" class="fb-bubble ai">
+        <text class="fb-who">{{companionName}}</text>{{replyText}}
+      </view>
+    </view>
+
+    <view class="fb-btn" bindtouchstart="onHoldStart" bindtouchend="onHoldEnd">{{recording ? "松开结束" : (processing ? "思考中…" : "按住开始说话")}}</view>
+    <view wx:if="{{canRetry}}" class="fb-btn fb-btn-ghost" bindtap="onRetryWebview">重新加载数字人</view>
   </view>
 
   <!-- 加载中 -->

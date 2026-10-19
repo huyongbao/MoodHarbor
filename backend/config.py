@@ -53,6 +53,42 @@ DH_CREDENTIALS = {
     "dh_02": (DH_APP_ID_MALE, DH_APP_SECRET_MALE),
 }
 
+# ---- 对外 HTTPS 地址（cloudflared 隧道，供小程序 web-view 加载 3D 数字人 H5）----
+# 关键：该地址由隧道脚本动态写回 .env，**不能只在进程启动时读一次**。
+# 否则隧道重启 → 域名变了 → 后端仍返回旧地址 → web-view 打开死链白屏。
+# 下面 get_public_base_url() 按 .env 的 mtime 做缓存热读，地址变了无需重启后端。
+PUBLIC_BASE_URL = os.getenv("PUBLIC_BASE_URL", "")
+
+_ENV_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env")
+_pub_url_cache = {"mtime": -1.0, "value": ""}
+
+
+def get_public_base_url() -> str:
+    """热读 .env 里的 PUBLIC_BASE_URL（按文件 mtime 缓存，隧道刷新后自动生效）。
+
+    隧道地址一天可能变好几次（Quick Tunnel 每次重启域名都随机），
+    进程启动时固化的话，改完 .env 还得重启后端，演示途中极易遗漏。
+    """
+    try:
+        mt = os.path.getmtime(_ENV_FILE)
+    except OSError:
+        mt = -1.0
+    if mt != _pub_url_cache["mtime"]:
+        val = ""
+        try:
+            with open(_ENV_FILE, "r", encoding="utf-8") as f:
+                for line in f:
+                    line = line.strip()
+                    if line.startswith("PUBLIC_BASE_URL="):
+                        val = line.split("=", 1)[1].strip()
+                        break
+        except OSError:
+            val = ""
+        _pub_url_cache["mtime"] = mt
+        _pub_url_cache["value"] = val or os.getenv("PUBLIC_BASE_URL", "")
+    return _pub_url_cache["value"]
+
+
 # ---- 风险分级（PRD 9.2）----
 RISK_CONFIDENCE_THRESHOLD = 0.8  # 模型置信度 ≥ 0.8 直接采信
 
