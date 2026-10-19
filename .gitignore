@@ -34,6 +34,8 @@ miniprogram/miniprogram_npm/
 
 # ==== 工具临时产物 ====
 .playwright-mcp/
+# 文档流水线中间产物（output/<时间戳>-<任务名>/stageN/...）
+output/
 
 # ==== 临时文件 ====
 test_cases.json
